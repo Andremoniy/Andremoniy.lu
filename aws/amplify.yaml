@@ -1,18 +1,42 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Initial AWS Amplify Hosting infrastructure for Andremoniy portfolio.
+Description: Amplify Hosting and Route 53 DNS for the Andremoniy portfolio.
 
 Parameters:
   GitHubTokenSecretName:
     Type: String
     Default: andremoniy/amplify/github
-    Description: Existing Secrets Manager secret containing a JSON field named token.
+    Description: Existing Secrets Manager secret with a JSON field named token.
 
   GitHubBranch:
     Type: String
     Default: main
     Description: GitHub branch to deploy.
 
+  DomainName:
+    Type: String
+    Default: andremoniy.lu
+    Description: Registered domain whose authoritative DNS will be hosted in Route 53.
+    AllowedPattern: '^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$'
+
+  EnableCustomDomain:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Set to true ONLY once the domain is registered and its NS records point to this Route 53 zone.
+
+Conditions:
+  UseCustomDomain: !Equals [!Ref EnableCustomDomain, 'true']
+
 Resources:
+  PublicHostedZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Ref DomainName
+      HostedZoneConfig:
+        Comment: Authoritative public DNS for the portfolio domain.
+
   PortfolioApp:
     Type: AWS::Amplify::App
     Properties:
@@ -35,6 +59,24 @@ Resources:
       EnableAutoBuild: true
       EnablePullRequestPreview: false
 
+  PortfolioDomain:
+    Type: AWS::Amplify::Domain
+    Condition: UseCustomDomain
+    DependsOn:
+      - PublicHostedZone
+      - ProductionBranch
+    Properties:
+      AppId: !GetAtt PortfolioApp.AppId
+      DomainName: !Ref DomainName
+      EnableAutoSubDomain: false
+      SubDomainSettings:
+        - Prefix: ''
+          BranchName: !Ref GitHubBranch
+        - Prefix: www
+          BranchName: !Ref GitHubBranch
+      # Amplify provisions its managed TLS certificate and can manage DNS
+      # records automatically when Route 53 hosts this domain in this account.
+
 Outputs:
   AmplifyAppId:
     Description: Amplify app ID.
@@ -45,8 +87,25 @@ Outputs:
     Value: !GetAtt PortfolioApp.DefaultDomain
 
   WebsiteURL:
-    Description: Public URL once the production branch has been deployed.
+    Description: Amplify URL, available once main is deployed.
     Value: !Sub
       - 'https://${Branch}.${Domain}'
       - Branch: !Ref GitHubBranch
         Domain: !GetAtt PortfolioApp.DefaultDomain
+
+  HostedZoneId:
+    Description: Route 53 public hosted zone ID.
+    Value: !Ref PublicHostedZone
+
+  DomainName:
+    Description: DNS domain configured for the hosted zone.
+    Value: !Ref DomainName
+
+  Route53NameServers:
+    Description: Copy these four name servers to the domain registrar.
+    Value: !Join [', ', !GetAtt PublicHostedZone.NameServers]
+
+  CustomDomainURL:
+    Condition: UseCustomDomain
+    Description: Custom HTTPS URL, valid once Amplify domain verification completes.
+    Value: !Sub 'https://${DomainName}'

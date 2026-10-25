@@ -1,43 +1,64 @@
 # AWS infrastructure
 
-Initial CloudFormation stack for the static portfolio hosted by **AWS Amplify Hosting**. The website source and `amplify.yml` build configuration remain at the repository root.
+CloudFormation for Amplify Hosting, Route 53 DNS and optional custom-domain association. The static website and its build specification (`amplify.yml`) are at the repository root.
 
 ## Resources
 
-- `AWS::Amplify::App` connected to `https://github.com/Andremoniy/Andremoniy.lu`
-- `AWS::Amplify::Branch` for `main`, with automatic builds on new commits
+- `AWS::Amplify::App` connects to `Andremoniy/Andremoniy.lu`
+- `AWS::Amplify::Branch` builds and publishes `main` on push
+- `AWS::Route53::HostedZone` creates a **public** DNS zone
+- `AWS::Amplify::Domain` connects the apex and `www` to Amplify, **only when explicitly enabled**
 
-A custom domain / Route 53 hosted zone is **not included yet**, pending the domain decision.
+### Important: .com versus .lu
 
-## First deployment
+The registrar order screenshot from 25 October 2026 shows **andremoniy.com**, but the domain requested for CloudFormation was **andremoniy.lu**.
 
-1. Choose the AWS Region (the examples use `eu-west-1`). Install the [AWS Amplify GitHub App for that Region](https://github.com/apps/aws-amplify-eu-west-1/installations/new), granting access to the `Andremoniy.lu` repository.
-2. Create a GitHub personal access token following [AWS's instructions](https://docs.aws.amazon.com/amplify/latest/userguide/setting-up-GitHub-access.html) (AWS documents the `admin:repo_hook` scope for a classic PAT).
-3. In **AWS Secrets Manager**, in the **same Region as the stack**, create a secret named `andremoniy/amplify/github`, with a JSON key `token` containing the PAT. Never put the token in Git, a CloudFormation parameter value, or shell history.
-4. From the repository root, run:
+Accordingly, `DomainName` defaults to `andremoniy.lu` as requested. **Before deploying, verify which domain you actually registered.** If it is `.com`, pass `DomainName=andremoniy.com`. Do not delegate an unrelated domain.
 
-   ```bash
-   aws cloudformation deploy \
-     --stack-name andremoniy-portfolio \
-     --template-file aws/amplify.yaml \
-     --region eu-west-1
-   ```
+## Deployment (two stages)
 
-   If the secret has a different name, supply `--parameter-overrides GitHubTokenSecretName=YOUR_SECRET_NAME`.
-5. Check the CloudFormation `WebsiteURL` output and Amplify's build status. If no first build has been started, trigger it manually:
+1. Install the [AWS Amplify GitHub App for eu-west-1](https://github.com/apps/aws-amplify-eu-west-1/installations/new), granting access to the repository.
+2. Follow [AWS GitHub access guidance](https://docs.aws.amazon.com/amplify/latest/userguide/setting-up-GitHub-access.html) to generate a suitable GitHub token for the CloudFormation connection.
+3. Create an **AWS Secrets Manager** secret in the same Region, named `andremoniy/amplify/github`, whose JSON body has a `token` field. Never put the token in Git or CLI arguments.
 
-   ```bash
-   aws amplify start-job \
-     --app-id YOUR_AMPLIFY_APP_ID \
-     --branch-name main \
-     --job-type RELEASE \
-     --region eu-west-1
-   ```
+**Stage 1: Create Amplify and Route 53, without yet associating the custom domain.**
+
+```bash
+aws cloudformation deploy \
+  --stack-name andremoniy-portfolio \
+  --template-file aws/amplify.yaml \
+  --parameter-overrides DomainName=andremoniy.com EnableCustomDomain=false \
+  --region eu-west-1
+```
+
+Replace `andremoniy.com` above with `andremoniy.lu` only if that is the registered domain.
+
+Get the `Route53NameServers` output, then set **all four** as the authoritative nameservers at the registrar (in the domain's nameserver / delegation settings). This replaces the registrar's DNS hosting; recreate any existing DNS records you need in Route 53 before switching. The registrar's additional "DNS zone" service is not required for this arrangement.
+
+Allow delegation to propagate; check that public DNS points to the four assigned Route 53 servers. If the first Amplify build has not started, use `aws amplify start-job --app-id APP_ID --branch-name main --job-type RELEASE --region eu-west-1`.
+
+**Stage 2: After the domain registration is complete, NS delegation works, and the site is deployed in Amplify, enable the domain association.**
+
+```bash
+aws cloudformation deploy \
+  --stack-name andremoniy-portfolio \
+  --template-file aws/amplify.yaml \
+  --parameter-overrides DomainName=andremoniy.com EnableCustomDomain=true \
+  --region eu-west-1
+```
+
+Use the same DomainName value in both deployments. Amplify will provision a managed TLS certificate and, when it recognises the Route 53 hosted zone in the same AWS account, automatically manage the required DNS records for the root domain and `www`. Check the Amplify domain association status before treating the domain as live.
+
+## How DNS ownership works
+
+Creating a hosted zone **does not prove** you own the domain; AWS allows multiple hosted zones for the same name. Only the nameservers configured with the domain registrar (and published via the parent TLD's delegation) determine which zone is authoritative for public DNS. By changing the domain's NS delegation you demonstrate control of its registration; certificate authorities additionally verify control through DNS challenge records.
 
 ## Notes
 
-- The CloudFormation deployment principal needs permission to retrieve the secret from Secrets Manager, and to create Amplify resources.
-- The root `amplify.yml` controls the static site build; this template intentionally does not duplicate the build spec.
-- Secrets Manager and Amplify Hosting incur AWS charges.
-- The GitHub PAT is used to establish the Amplify GitHub App connection; it is not stored in the template or source tree.
-- Deploying this template creates AWS resources. Committing it alone does **not** deploy the stack.
+- The template **does not purchase or register a domain**. It creates a Route 53 hosted zone, which incurs charges even before delegation.
+- Changing `DomainName` on an existing stack replaces the hosted zone and may also replace the Amplify domain association. Verify the name before first deployment.
+- Commit-only does not deploy CloudFormation. The GitHub connection uses the secret specified by `GitHubTokenSecretName`.
+- Avoid manually creating an additional Route 53 hosted zone for the same domain. If one already exists, import/adopt it instead of creating a duplicate.
+- The current build pipeline fetches Apple app artwork and depends on Apple's API being reachable from the Amplify build environment.
+
+References: [CloudFormation HostedZone](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-route53-hostedzone.html), [Amplify Domain](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-amplify-domain.html), [Amplify + Route 53](https://docs.aws.amazon.com/amplify/latest/userguide/to-add-a-custom-domain-managed-by-amazon-route-53.html).
