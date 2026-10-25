@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Initial AWS Amplify Hosting infrastructure for Andremoniy portfolio.
+
+Parameters:
+  GitHubTokenSecretName:
+    Type: String
+    Default: andremoniy/amplify/github
+    Description: Existing Secrets Manager secret containing a JSON field named token.
+
+  GitHubBranch:
+    Type: String
+    Default: main
+    Description: GitHub branch to deploy.
+
+Resources:
+  PortfolioApp:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: andremoniy-portfolio
+      Description: Andremoniy personal portfolio website
+      Repository: https://github.com/Andremoniy/Andremoniy.lu
+      Platform: WEB
+      # GitHub App authorization requires a PAT. Never commit the PAT itself.
+      AccessToken: !Sub '{{resolve:secretsmanager:${GitHubTokenSecretName}:SecretString:token}}'
+      Tags:
+        - Key: Project
+          Value: AndremoniyPortfolio
+
+  ProductionBranch:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId: !GetAtt PortfolioApp.AppId
+      BranchName: !Ref GitHubBranch
+      Stage: PRODUCTION
+      EnableAutoBuild: true
+      EnablePullRequestPreview: false
+
+Outputs:
+  AmplifyAppId:
+    Description: Amplify app ID.
+    Value: !GetAtt PortfolioApp.AppId
+
+  AmplifyDefaultDomain:
+    Description: Default Amplify domain (without branch prefix).
+    Value: !GetAtt PortfolioApp.DefaultDomain
+
+  WebsiteURL:
+    Description: Public URL once the production branch has been deployed.
+    Value: !Sub
+      - 'https://${Branch}.${Domain}'
+      - Branch: !Ref GitHubBranch
+        Domain: !GetAtt PortfolioApp.DefaultDomain
