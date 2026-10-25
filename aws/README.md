@@ -9,11 +9,11 @@ CloudFormation for Amplify Hosting, Route 53 DNS and optional custom-domain asso
 - `AWS::Route53::HostedZone` creates a **public** DNS zone
 - `AWS::Amplify::Domain` connects the apex and `www` to Amplify, **only when explicitly enabled**
 
-### Important: .com versus .lu
+## Domain
 
-The registrar order screenshot from 25 October 2026 shows **andremoniy.com**, but the domain requested for CloudFormation was **andremoniy.lu**.
+The registered domain is **andremoniy.com**. The CloudFormation parameter `DomainName` defaults to `andremoniy.com`, and the Route 53 hosted zone and optional Amplify domain association will use that value.
 
-Accordingly, `DomainName` defaults to `andremoniy.lu` as requested. **Before deploying, verify which domain you actually registered.** If it is `.com`, pass `DomainName=andremoniy.com`. Do not delegate an unrelated domain.
+The GitHub repository remains named `Andremoniy.lu`; its name does not affect the custom domain.
 
 ## Deployment (two stages)
 
@@ -27,11 +27,10 @@ Accordingly, `DomainName` defaults to `andremoniy.lu` as requested. **Before dep
 aws cloudformation deploy \
   --stack-name andremoniy-portfolio \
   --template-file aws/amplify.yaml \
-  --parameter-overrides DomainName=andremoniy.com EnableCustomDomain=false \
+  --parameter-overrides EnableCustomDomain=false \
   --region eu-west-1
 ```
 
-Replace `andremoniy.com` above with `andremoniy.lu` only if that is the registered domain.
 
 Get the `Route53NameServers` output, then set **all four** as the authoritative nameservers at the registrar (in the domain's nameserver / delegation settings). This replaces the registrar's DNS hosting; recreate any existing DNS records you need in Route 53 before switching. The registrar's additional "DNS zone" service is not required for this arrangement.
 
@@ -43,11 +42,11 @@ Allow delegation to propagate; check that public DNS points to the four assigned
 aws cloudformation deploy \
   --stack-name andremoniy-portfolio \
   --template-file aws/amplify.yaml \
-  --parameter-overrides DomainName=andremoniy.com EnableCustomDomain=true \
+  --parameter-overrides EnableCustomDomain=true \
   --region eu-west-1
 ```
 
-Use the same DomainName value in both deployments. Amplify will provision a managed TLS certificate and, when it recognises the Route 53 hosted zone in the same AWS account, automatically manage the required DNS records for the root domain and `www`. Check the Amplify domain association status before treating the domain as live.
+Keep the same DomainName value (default: andremoniy.com) in both deployments. Amplify will provision a managed TLS certificate and, when it recognises the Route 53 hosted zone in the same AWS account, automatically manage the required DNS records for the root domain and `www`. Check the Amplify domain association status before treating the domain as live.
 
 ## How DNS ownership works
 

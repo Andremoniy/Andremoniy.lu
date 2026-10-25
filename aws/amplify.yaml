@@ -14,7 +14,7 @@ Parameters:
 
   DomainName:
     Type: String
-    Default: andremoniy.lu
+    Default: andremoniy.com
     Description: Registered domain whose authoritative DNS will be hosted in Route 53.
     AllowedPattern: '^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$'
 
