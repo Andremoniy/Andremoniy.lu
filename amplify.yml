@@ -1,0 +1,15 @@
+version: 1
+frontend:
+  phases:
+    build:
+      commands:
+        - mkdir -p dist
+        - cp index.html career.html apps.html 3d-printing.html art.html behind-the-site.html dist/
+        - cp -r assets dist/assets
+        - python3 scripts/fetch_apple_icons.py dist
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  cache:
+    paths: []

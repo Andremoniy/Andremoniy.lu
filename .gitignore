@@ -1,0 +1,9 @@
+dist/
+.DS_Store
+*.pyc
+__pycache__/
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
