@@ -20,11 +20,11 @@ Parameters:
 
   EnableCustomDomain:
     Type: String
-    Default: 'false'
+    Default: 'true'
     AllowedValues:
       - 'true'
       - 'false'
-    Description: Set to true ONLY once the domain is registered and its NS records point to this Route 53 zone.
+    Description: Associates the domain with Amplify when enabled; disable on the first deployment until NS delegation is configured.
 
 Conditions:
   UseCustomDomain: !Equals [!Ref EnableCustomDomain, 'true']

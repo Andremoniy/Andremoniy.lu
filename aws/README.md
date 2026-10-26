@@ -7,7 +7,7 @@ CloudFormation for Amplify Hosting, Route 53 DNS and optional custom-domain asso
 - `AWS::Amplify::App` connects to `Andremoniy/Andremoniy.lu`
 - `AWS::Amplify::Branch` builds and publishes `main` on push
 - `AWS::Route53::HostedZone` creates a **public** DNS zone
-- `AWS::Amplify::Domain` connects the apex and `www` to Amplify, **only when explicitly enabled**
+- `AWS::Amplify::Domain` connects the apex and `www` to Amplify, **enabled by default** (disable during the initial DNS-only deployment)
 
 ## Domain
 
@@ -21,7 +21,7 @@ The GitHub repository remains named `Andremoniy.lu`; its name does not affect th
 2. Follow [AWS GitHub access guidance](https://docs.aws.amazon.com/amplify/latest/userguide/setting-up-GitHub-access.html) to generate a suitable GitHub token for the CloudFormation connection.
 3. Create an **AWS Secrets Manager** secret in the same Region, named `andremoniy/amplify/github`, whose JSON body has a `token` field. Never put the token in Git or CLI arguments.
 
-**Stage 1: Create Amplify and Route 53, without yet associating the custom domain.**
+**Stage 1: Create Amplify and Route 53, without yet associating the custom domain.** Although `EnableCustomDomain` now defaults to `true`, override it to `false` during the first deployment. Registration alone is not enough: the registrar must delegate the domain to the Route 53 nameservers from this stack. Associating it before that may leave certificate validation pending.
 
 ```bash
 aws cloudformation deploy \
@@ -32,11 +32,11 @@ aws cloudformation deploy \
 ```
 
 
-Get the `Route53NameServers` output, then set **all four** as the authoritative nameservers at the registrar (in the domain's nameserver / delegation settings). This replaces the registrar's DNS hosting; recreate any existing DNS records you need in Route 53 before switching. The registrar's additional "DNS zone" service is not required for this arrangement.
+Get the `Route53NameServers` output, then in the OVHcloud Control Panel open **Web Cloud > Domain names > andremoniy.com > DNS servers** (menu labels may vary). Choose custom/external name servers and replace the existing nameservers with **all four** Route 53 nameservers. This replaces the registrar's DNS hosting; recreate any existing DNS records you need in Route 53 before switching. The registrar's additional "DNS zone" service is not required for this arrangement.
 
 Allow delegation to propagate; check that public DNS points to the four assigned Route 53 servers. If the first Amplify build has not started, use `aws amplify start-job --app-id APP_ID --branch-name main --job-type RELEASE --region eu-west-1`.
 
-**Stage 2: After the domain registration is complete, NS delegation works, and the site is deployed in Amplify, enable the domain association.**
+**Stage 2: After NS delegation works and the site is deployed in Amplify, enable the domain association.** This is the default configuration in the template.
 
 ```bash
 aws cloudformation deploy \
@@ -47,6 +47,8 @@ aws cloudformation deploy \
 ```
 
 Keep the same DomainName value (default: andremoniy.com) in both deployments. Amplify will provision a managed TLS certificate and, when it recognises the Route 53 hosted zone in the same AWS account, automatically manage the required DNS records for the root domain and `www`. Check the Amplify domain association status before treating the domain as live.
+
+Do **not** edit records in OVHcloud's **DNS zone** for Amplify; after delegation, Route 53 is authoritative and Amplify manages the necessary domain verification and website records there. If you use email or other services with existing DNS records, migrate their MX/TXT/etc. records into the new Route 53 hosted zone before switching nameservers.
 
 ## How DNS ownership works
 
