@@ -654,3 +654,17 @@ section#art .art-piece.three.art-photographic img{object-position:50% 55%}
 /* Family heraldic artwork: same square footprint as the original a/l monogram. */
 .logo-box { box-sizing:border-box; overflow:hidden; background:#f1efe5; border:1px solid rgba(25,39,32,.19); flex-shrink:0; }
 .logo-box img { width:100%; height:100%; display:block; object-fit:contain; }
+
+/* Dissertation documents and academic research, October 2026. */
+.dissertation-panel{background:#fffdf8;border:1px solid #d6ded2;border-radius:18px;padding:30px;margin-top:26px;box-shadow:0 13px 40px rgba(24,50,36,.04)}
+.dissertation-head{display:grid;grid-template-columns:1.15fr 1fr;gap:30px;align-items:center;padding-bottom:25px;border-bottom:1px solid #d8e0d6}
+.dissertation-head h3{font:600 clamp(22px,2.65vw,35px)/1.18 Georgia,serif;letter-spacing:-.02em;margin:9px 0 0;color:#1d332a}
+.dissertation-head p{color:#59645b;font-size:15px;line-height:1.68;margin:0}
+.dissertation-docs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding-top:22px}
+.dissertation-doc{border:1px solid #d9e0d8;border-radius:11px;background:#f7f7f0;min-width:0;padding:17px 13px;display:flex;flex-direction:column;align-items:flex-start;gap:7px}
+.dissertation-doc .doc-label{font:700 9px/1.5 'Space Mono',monospace;color:#738074;letter-spacing:.055em}
+.dissertation-doc h4{font:600 17px/1.2 Georgia,serif;margin:3px 0 4px;color:#22372b}
+.dissertation-doc a{font-size:12px;color:#1c5a3d;font-weight:700;text-decoration:underline;text-underline-offset:3px;padding:4px 0}
+.dissertation-doc small{font-size:10px;color:#777e76;line-height:1.4}
+@media(max-width:900px){.dissertation-docs{grid-template-columns:repeat(2,1fr)}.dissertation-head{grid-template-columns:1fr;gap:14px}}
+@media(max-width:500px){.dissertation-panel{padding:18px 14px}.dissertation-docs{grid-template-columns:1fr;gap:9px}.dissertation-doc{padding:14px}.dissertation-head h3{font-size:23px}}
