@@ -650,3 +650,7 @@ section#art .art-piece.three.art-photographic img{object-position:50% 55%}
 .app-hero-stack .apple-artwork .app-artwork-fallback strong{font-size:10px}
 .app-hero-stack .apple-artwork .app-artwork-fallback small{font-size:8px}
 @media(max-width:650px){.app-hero-stack .apple-artwork .app-artwork-fallback{width:89px;height:89px}.apple-artwork .app-artwork-fallback{width:138px;height:138px}}
+
+/* Family heraldic artwork: same square footprint as the original a/l monogram. */
+.logo-box { box-sizing:border-box; overflow:hidden; background:#f1efe5; border:1px solid rgba(25,39,32,.19); flex-shrink:0; }
+.logo-box img { width:100%; height:100%; display:block; object-fit:contain; }
