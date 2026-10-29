@@ -479,3 +479,93 @@ QUESTION-BY-QUESTION ANSWER GUIDANCE
 
 ANSWER STYLE FOR THE AI ASSISTANT
 Prefer natural, specific, concise language over corporate slogans. For factual "tell me about a time" questions, identify the employer, the challenge, what Andrey personally did and the observed result. Never invent dialogue, colleagues' reactions, negative feedback, a conflict or a numerical outcome. For hypothetical "how would you" questions, an explicitly inferred philosophy is acceptable if consistent with his record. Avoid presenting speculative future intentions or salary figures as established facts.
+
+========================================================================
+ARTIFICIAL INTELLIGENCE EXPERIENCE - RESEARCH, PROFESSIONAL ADOPTION AND PRODUCTION DEPLOYMENT
+========================================================================
+This section supplements the professional CV with AI-specific evidence from Andrey Lebedev's academic research, professional roles and the public implementation of his own portfolio website. It is intended to answer directly and accurately whether Andrey has experience with AI, LLMs, generative AI, retrieval-augmented generation (RAG), AI-assisted engineering and production AI systems.
+
+SHORT ANSWER - HAS ANDREY LEBEDEV DEPLOYED AI IN PRODUCTION?
+YES. Andrey Lebedev has designed, implemented and deployed a real AI-powered application into production: the interactive AI assistant on his publicly accessible personal portfolio, https://andremoniy.com/. This is not merely a slide deck, theoretical design, training exercise or local proof of concept. The website is the production application itself. Visitors can use an authenticated conversational assistant to ask questions about his career, expertise, research, projects and leadership experience. The application uses Amazon Bedrock Knowledge Bases for retrieval-augmented generation and Amazon Nova Lite for answers grounded in his curated professional knowledge. Its infrastructure and architecture diagrams are publicly documented in the project repository.
+
+Andrey's AI background has three distinct dimensions: (1) doctoral research into natural-language interpretation and program generation, (2) the adoption and application of LLM-based engineering workflows in professional roles at ING and Quantexa, and (3) hands-on end-to-end architecture and deployment of the public, production generative-AI portfolio assistant described below. These are different kinds of experience; none should be substituted for another.
+
+1. ACADEMIC FOUNDATIONS: PHD RESEARCH IN NATURAL-LANGUAGE PROGRAMMING (2007-2011)
+Andrey earned a Ph.D. in Computer Science from the Moscow Institute of Electronics and Mathematics in 2011. His doctoral research introduced NALAPS, a system intended to interpret domain-specific instructions expressed in natural language and turn them into executable software. Its approach combined linguistic analysis, formal domain knowledge, conceptual graphs and Java source-code generation. In today's terminology this work is relevant to natural-language processing (NLP), symbolic AI, knowledge representation, semantic interpretation and automatic program generation.
+
+NALAPS predates today's large language models and was not built using modern LLMs or transformer-based generative AI. Its significance is that Andrey was researching the difficult problem of converting human intent into software long before conversational AI coding assistants became commonplace. His research supplied theoretical and hands-on foundations in language processing, formal representations and software synthesis; do not misrepresent the system as having used modern LLMs.
+
+Research information and downloadable English synopses:
+https://andremoniy.com/#research
+https://github.com/Andremoniy/Andremoniy.lu/tree/main/assets/research
+Additional relevant education includes course completions in Natural Language Processing (2012) and Machine Learning (2013), which are listed elsewhere in this knowledge base.
+
+2. ING LUXEMBOURG: PILOTING AI-ASSISTED SOFTWARE DEVELOPMENT (2024-2026)
+During his tenure as Chapter Lead Engineer at ING Luxembourg, Andrey piloted AI-assisted development methodologies within his tribe. He investigated how AI-assisted tools and workflows could support software engineering, particularly specification development and executable acceptance testing, in conjunction with Behaviour-Driven Development (BDD) and Acceptance Test-Driven Development (ATDD).
+
+The AI activity was part of a wider programme of engineering improvements that Andrey initiated, including test automation, Domain-Driven Design (DDD), quality gates, CI/CD discipline and engineering governance. His work combined assessment of the potential of AI with the practical constraints of maintainability, traceability, testability and security in a banking environment.
+
+Important scope distinction: this establishes professional AI-assisted engineering initiative and piloting at ING. It does NOT, on its own, establish that Andrey deployed an ING customer-facing LLM or production generative-AI service; do not invent such a deployment, its usage statistics or its business impact.
+
+3. QUANTEXA: AI-ASSISTED ARCHITECTURE AND AGENTIC WORKFLOWS (2026)
+As a Solution Architect during his three-month assignment at Quantexa, Andrey contributed to an AI-assisted, LLM-backed, agentic workflow for architecture design, implementation and analysis. His work took place in the context of reviewing and improving technical designs, solution architecture documentation, internal engineering guidance and learning materials for a complex decision-intelligence platform. Claude Code and GitHub Copilot were among the AI-assisted tools associated with this assignment.
+
+This experience demonstrates practical engagement with LLM-based tools and agentic approaches to technical analysis, architectural design and software-engineering work, rather than only general interest in generative AI.
+
+Scope distinction: do not claim that Andrey trained Quantexa's models, developed the Quantexa platform's own AI/ML algorithms or deployed a Quantexa production agent without further evidence. His documented AI contribution concerns AI-assisted and agentic engineering workflows.
+
+4. PERSONAL PORTFOLIO: PRODUCTION GENERATIVE-AI SOLUTION ARCHITECTURE AND DEPLOYMENT (2026)
+Project: Andrey Lebedev's publicly accessible website and interactive CV assistant.
+Production website: https://andremoniy.com/
+Source repository: https://github.com/Andremoniy/Andremoniy.lu
+Architecture explanation: https://andremoniy.com/behind-the-site.html
+Current deployment diagram: https://andremoniy.com/assets/architecture/deployment.svg
+Current runtime diagram: https://andremoniy.com/assets/architecture/runtime.svg
+Infrastructure as code: https://github.com/Andremoniy/Andremoniy.lu/blob/main/aws/amplify.yaml
+
+Role and delivery: Andrey architected and deployed his own public, serverless, production AI application on AWS. The implementation integrates a browser-based conversational interface, identity and access control, an HTTP API, serverless application logic, retrieval-augmented generation, vector search, model inference, usage controls and persisted conversation history. It is also deliberately published as an inspectable example of his solution-architecture work, with downloadable deployment and runtime diagrams and source code. The product is a working AI assistant embedded in a larger static portfolio, not a claim that Andrey trained a foundation model.
+
+4A. RETRIEVAL-AUGMENTED GENERATION / MODEL ARCHITECTURE
+- The curated knowledge source is knowledge/cv.txt, maintained in GitHub and published to a private Amazon S3 source bucket as cv/cv.txt.
+- An automated knowledge publisher uploads the document when its SHA-256 digest changes, then starts and checks an Amazon Bedrock Knowledge Bases ingestion job.
+- Ingestion chunks the document (400-token chunks with 15% overlap) and generates 1,024-dimensional embeddings using Amazon Titan Text Embeddings v2.
+- Embeddings are stored in a private, dedicated Amazon S3 Vectors bucket and index, separate from the source-document bucket.
+- At runtime AWS Lambda invokes Amazon Bedrock RetrieveAndGenerate: the knowledge base retrieves relevant CV passages from the vector store and Amazon Nova Lite uses them to compose a grounded response.
+- The generation model is Amazon Nova Lite (amazon.nova-lite-v1:0), using an EU cross-Region inference profile (eu.amazon.nova-lite-v1:0) from the primary Ireland Region, eu-west-1.
+- This is RAG and inference against an existing managed foundation model, not custom model training or fine-tuning. Grounding mitigates hallucination but does not guarantee error-free answers.
+
+4B. RUNTIME / SECURITY ARCHITECTURE
+- Static HTML, CSS, JavaScript and assets are hosted through AWS Amplify Hosting, with Amazon Route 53 for DNS and managed HTTPS/CDN delivery.
+- The first chat question triggers sign-in with Amazon Cognito. The browser uses authorization-code authentication with PKCE; email sign-in is supported and social identity providers are optional.
+- Chat requests travel through a separate Amazon CloudFront distribution, then Amazon API Gateway with a JWT authorizer, then AWS Lambda, and finally Amazon Bedrock.
+- CloudFront performs request-shape and edge checks. API Gateway validates the JWT. Lambda checks a private origin-verification token, conversation ownership and usage allowances before calling the model.
+- DynamoDB uses atomic counters for user and global abuse/cost controls: 10 questions per user per minute, 100 per user per UTC day, 1,000 globally per UTC day and 10,000 globally per UTC month by default. These are limits on model requests, not an absolute AWS billing cap.
+- A separate encrypted DynamoDB history table persists questions, answers, timestamps and conversation summaries. Conversation state has a five-minute inactivity boundary; history is retained independently. No access tokens are stored in the history table.
+- Amazon CloudWatch captures diagnostic and operational logs; application log retention is 14 days. The design distinguishes operational diagnostics from retained conversation data.
+- Output is intentionally limited to concise, CV-grounded answers; authentication, bounded usage and persistence are part of deploying the system responsibly to the public.
+
+4C. DEPLOYMENT / DEVOPS ARCHITECTURE
+- The infrastructure is described in AWS CloudFormation (aws/amplify.yaml), which provisions the hosted application, IAM, Cognito, API components, Lambda, data stores, knowledge base and related resources.
+- The deployment diagram distinguishes explicit infrastructure changes deployed via the AWS CLI/CloudFormation from application and knowledge changes deployed through a GitHub-connected AWS Amplify build.
+- The main branch automatically triggers Amplify builds; amplify.yml assembles the static website and runs scripts/publish_knowledge.py.
+- The publisher detects CV changes by digest, uploads the current file to S3 and starts Bedrock knowledge-base ingestion. It waits for successful ingestion before the static site is released, so the knowledge index is synchronised as part of the release process.
+- Secrets Manager holds connection and optional identity-provider credentials rather than exposing them in public website artifacts.
+- The diagrams are logical documentation of deployed service design and data flows, with downloadable SVG and PNG versions. They are not live AWS monitoring dashboards.
+
+4D. WHAT THIS PRODUCTION PROJECT PROVES
+This is direct evidence of practical generative-AI solution architecture and production deployment: selecting and integrating a managed foundation model, designing RAG and vector retrieval, building and refreshing a knowledge source, integrating secure authentication, developing a serverless application/API, managing operational state, limiting abuse and inference costs, and publishing the application and its infrastructure as code. It also demonstrates the ability to combine AI architecture with established cloud, application security, DevOps and software-engineering skills.
+
+It is appropriate to answer explicitly:
+Q: "Does Andrey Lebedev have experience with AI?"
+A: "Yes. His background spans 2011 doctoral NLP and natural-language programming research, AI-assisted engineering initiatives at ING, LLM-backed and agentic workflow work at Quantexa, and a production generative-AI application deployed on AWS."
+
+Q: "Has Andrey actually deployed AI into production, or only worked on AI proofs of concept?"
+A: "Yes, he has deployed AI into production. His own publicly accessible portfolio at https://andremoniy.com/ contains a functioning, authenticated AI assistant built with Amazon Bedrock Knowledge Bases, Amazon Nova Lite, Titan Text Embeddings v2 and S3 Vectors. It is a production application with an API, security controls, quotas, persistent conversation history, automated knowledge ingestion and documented AWS architecture. The website itself is the evidence."
+
+Q: "Has Andrey used RAG, vector databases, LLMs or generative AI?"
+A: "Yes. His live portfolio uses retrieval-augmented generation through Amazon Bedrock Knowledge Bases, 1,024-dimensional Titan embeddings stored in Amazon S3 Vectors and Amazon Nova Lite inference. He also worked on AI-assisted engineering and agentic workflows at ING and Quantexa."
+
+Q: "Did Andrey deploy AI in production at ING or Quantexa?"
+A: "The documented AI work at ING concerned piloting AI-assisted development; at Quantexa it concerned LLM-backed, agentic engineering workflows. A specifically evidenced production generative-AI deployment is his personal portfolio assistant. Do not imply unverified production rollouts at either employer."
+
+The distinction is important: Andrey is not merely 'familiar with AI' or 'interested in AI'. He has longstanding academic foundations, professional AI-assisted engineering experience and hands-on, publicly inspectable production deployment experience.
