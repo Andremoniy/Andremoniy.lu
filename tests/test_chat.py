@@ -51,6 +51,9 @@ class ChatTests(unittest.TestCase):
             'CHAT_STATE_TABLE': 'chat-state',
             'QUESTIONS_PER_MINUTE': '10',
             'QUESTIONS_PER_DAY': '100',
+            'GLOBAL_QUESTIONS_PER_DAY': '1000',
+            'GLOBAL_QUESTIONS_PER_MONTH': '10000',
+            'ORIGIN_VERIFICATION_TOKEN': 'server-only-origin-token',
         })
         self.environment_patch.start()
         self.addCleanup(self.environment_patch.stop)
@@ -67,7 +70,8 @@ class ChatTests(unittest.TestCase):
 
     def event(self, request_body, origin='https://example.com', user_id='visitor-123'):
         return {
-            'headers': {'origin': origin, 'Authorization': 'Bearer signed-access-token'},
+            'headers': {'origin': origin, 'Authorization': 'Bearer signed-access-token',
+                        'X-Portfolio-Origin': 'server-only-origin-token'},
             'body': json.dumps(request_body),
             'requestContext': {'authorizer': {'jwt': {'claims': {
                 'sub': user_id, 'token_use': 'access', 'client_id': 'chat-client',
@@ -167,17 +171,20 @@ class ChatTests(unittest.TestCase):
 
     def test_user_counters_are_separate_and_updated_in_one_transaction(self):
         with patch.object(self.handler_module.time, 'time', return_value=1000000):
-            self.handler_module.consume_user_quota('alice')
-            self.handler_module.consume_user_quota('bob')
+            self.handler_module.consume_chat_quota('alice')
+            self.handler_module.consume_chat_quota('bob')
         first_updates = self.state_client.transact_write_items.call_args_list[0].kwargs['TransactItems']
         second_updates = self.state_client.transact_write_items.call_args_list[1].kwargs['TransactItems']
-        self.assertEqual(2, len(first_updates))
-        for first_update, second_update in zip(first_updates, second_updates):
+        self.assertEqual(4, len(first_updates))
+        for first_update, second_update in zip(first_updates[:2], second_updates[:2]):
             first_key = first_update['Update']['Key']['recordId']['S']
             second_key = second_update['Update']['Key']['recordId']['S']
             self.assertNotEqual(first_key, second_key)
         self.assertEqual('10', first_updates[0]['Update']['ExpressionAttributeValues'][':limit']['N'])
         self.assertEqual('100', first_updates[1]['Update']['ExpressionAttributeValues'][':limit']['N'])
+        self.assertEqual(first_updates[2:], second_updates[2:])
+        self.assertEqual('1000', first_updates[2]['Update']['ExpressionAttributeValues'][':limit']['N'])
+        self.assertEqual('10000', first_updates[3]['Update']['ExpressionAttributeValues'][':limit']['N'])
 
     def test_quota_denial_returns_reset_time_and_stops_bedrock(self):
         self.state_client.transact_write_items.side_effect = ClientError({
@@ -247,6 +254,98 @@ class ChatTests(unittest.TestCase):
         request_event['body'] = base64.b64encode(request_event['body'].encode()).decode()
         request_event['isBase64Encoded'] = True
         self.assertEqual(200, self.handler_module.handler(request_event, None)['statusCode'])
+
+    def test_direct_origin_requests_are_rejected_before_state_access(self):
+        direct_request = self.event({'message': 'AWS?'})
+        direct_request['headers'].pop('X-Portfolio-Origin')
+        response = self.handler_module.handler(direct_request, None)
+        self.assertEqual(403, response['statusCode'])
+        self.state_client.transact_write_items.assert_not_called()
+        self.bedrock_client.retrieve_and_generate.assert_not_called()
+
+    def test_verified_email_aliases_share_normalized_quota_identity(self):
+        aliases = ('First.Last+one@gmail.com', 'firstlast+two@googlemail.com', 'firstlast@gmail.com')
+        quota_keys = [self.handler_module.quota_identity('different-subject-' + str(position), {
+            'email': email_address, 'email_verified': True,
+        }) for position, email_address in enumerate(aliases)]
+        self.assertEqual(1, len(set(quota_keys)))
+        self.assertNotIn('@', quota_keys[0])
+        self.assertNotIn('firstlast', quota_keys[0])
+        business_mailbox = self.handler_module.quota_identity('business', {
+            'email': 'first.last@company.example', 'email_verified': 'true',
+        })
+        other_business_mailbox = self.handler_module.quota_identity('business', {
+            'email': 'firstlast@company.example', 'email_verified': 'true',
+        })
+        self.assertNotEqual(business_mailbox, other_business_mailbox)
+
+    def test_unverified_email_cannot_take_over_another_mailbox_quota(self):
+        first_identity = self.handler_module.quota_identity('one', {
+            'email': 'victim@example.com', 'email_verified': False,
+        })
+        second_identity = self.handler_module.quota_identity('two', {
+            'email': 'victim@example.com', 'email_verified': False,
+        })
+        self.assertNotEqual(first_identity, second_identity)
+
+    def test_global_month_limit_returns_calendar_reset_and_stops_bedrock(self):
+        self.state_client.transact_write_items.side_effect = ClientError({
+            'Error': {'Code': 'TransactionCanceledException', 'Message': 'Quota exceeded'},
+            'CancellationReasons': [{'Code': 'None'}] * 3 + [{'Code': 'ConditionalCheckFailed'}],
+        }, 'TransactWriteItems')
+        with patch.object(self.handler_module.time, 'time', return_value=1798761599):
+            response = self.request({'message': 'AWS?'})
+        response_body = json.loads(response['body'])
+        self.assertEqual(429, response['statusCode'])
+        self.assertEqual('global', response_body['limitScope'])
+        self.assertEqual(1, response_body['retryAfterSeconds'])
+        self.bedrock_client.retrieve_and_generate.assert_not_called()
+
+    def test_global_day_limit_applies_independently_of_user_limits(self):
+        self.state_client.transact_write_items.side_effect = ClientError({
+            'Error': {'Code': 'TransactionCanceledException', 'Message': 'Quota exceeded'},
+            'CancellationReasons': [{'Code': 'None'}] * 2 + [
+                {'Code': 'ConditionalCheckFailed'}, {'Code': 'None'}],
+        }, 'TransactWriteItems')
+        response = self.request({'message': 'AWS?'})
+        self.assertEqual('global', json.loads(response['body'])['limitScope'])
+        self.bedrock_client.retrieve_and_generate.assert_not_called()
+
+    def test_calendar_month_windows_handle_leap_years(self):
+        leap_day = self.handler_module.datetime(2028, 2, 29, tzinfo=self.handler_module.timezone.utc)
+        with patch.object(self.handler_module.time, 'time', return_value=leap_day.timestamp()):
+            self.handler_module.consume_chat_quota('visitor')
+        monthly_update = self.state_client.transact_write_items.call_args.kwargs['TransactItems'][3]['Update']
+        self.assertEqual('quota#global#month#2028-02', monthly_update['Key']['recordId']['S'])
+        march_first = self.handler_module.datetime(2028, 3, 1, tzinfo=self.handler_module.timezone.utc)
+        self.assertEqual(
+            str(int(march_first.timestamp()) + 86400),
+            monthly_update['ExpressionAttributeValues'][':expiry']['N'],
+        )
+
+
+class SignupTests(unittest.TestCase):
+    def setUp(self):
+        self.signup_module = types.ModuleType('signup_guard')
+        function_source = CLOUDFORMATION_TEMPLATE['Resources']['ChatSignupFunction']['Properties']['Code']['ZipFile']
+        exec(compile(function_source, 'inline-signup-guard', 'exec'), self.signup_module.__dict__)
+
+    def test_tagged_email_is_rejected_before_cognito_stores_it(self):
+        for tagged_email in ('person+one@gmail.com', 'person+two@company.example'):
+            with self.subTest(tagged_email=tagged_email):
+                with self.assertRaisesRegex(ValueError, 'base email address'):
+                    self.signup_module.handler({'request': {'userAttributes': {'email': tagged_email}}}, None)
+
+    def test_base_email_keeps_verification_required(self):
+        signup_event = {
+            'request': {'userAttributes': {'email': 'person@example.com'}},
+            'response': {'autoConfirmUser': False, 'autoVerifyEmail': False},
+        }
+        self.assertEqual(signup_event, self.signup_module.handler(signup_event, None))
+
+    def test_missing_email_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'valid email'):
+            self.signup_module.handler({'request': {'userAttributes': {}}}, None)
 
 
 class PublishTests(unittest.TestCase):

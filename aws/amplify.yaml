@@ -2,6 +2,16 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: Amplify Hosting and Route 53 DNS for the Andremoniy portfolio.
 
 Parameters:
+  ChatGlobalQuestionsPerDay:
+    Type: Number
+    Default: 1000
+    MinValue: 1
+    Description: Maximum accepted chat requests across all users per UTC day.
+  ChatGlobalQuestionsPerMonth:
+    Type: Number
+    Default: 10000
+    MinValue: 1
+    Description: Maximum accepted chat requests across all users per UTC calendar month.
   ChatQuestionsPerMinute:
     Type: Number
     Default: 10
@@ -116,7 +126,7 @@ Resources:
         - Name: CV_DATA_SOURCE
           Value: !GetAtt CvDataSource.DataSourceId
         - Name: CHAT_API_URL
-          Value: !Sub 'https://${ChatApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/chat'
+          Value: !Sub 'https://${ChatDistribution.DomainName}/chat'
         - Name: CHAT_AUTH_DOMAIN
           Value: !Sub 'https://${ChatUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com'
         - Name: CHAT_AUTH_CLIENT_ID
@@ -288,6 +298,8 @@ Resources:
       UserPoolTier: LITE
       UsernameAttributes: [email]
       AutoVerifiedAttributes: [email]
+      LambdaConfig:
+        PreSignUp: !GetAtt ChatSignupFunction.Arn
       UsernameConfiguration:
         CaseSensitive: false
       Schema:
@@ -314,6 +326,45 @@ Resources:
         RecoveryMechanisms:
           - Name: verified_email
             Priority: 1
+
+  ChatSignupRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+  ChatSignupFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.13
+      Handler: index.handler
+      Role: !GetAtt ChatSignupRole.Arn
+      MemorySize: 128
+      Timeout: 3
+      Code:
+        ZipFile: |
+          def handler(event, context):
+              email_address = event.get('request', {}).get('userAttributes', {}).get('email', '')
+              local_part, separator, domain = email_address.rpartition('@')
+              if not separator or not local_part or not domain:
+                  raise ValueError('A valid email address is required.')
+              if '+' in local_part:
+                  raise ValueError('Please use your base email address without a +tag to sign up.')
+              return event
+
+  ChatSignupPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ChatSignupFunction
+      Action: lambda:InvokeFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !GetAtt ChatUserPool.Arn
 
   ChatUserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
@@ -470,6 +521,16 @@ Resources:
       SSESpecification:
         SSEEnabled: true
 
+  ChatOriginSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Server-side CloudFront origin verification token for the chat API.
+      GenerateSecretString:
+        SecretStringTemplate: '{}'
+        GenerateStringKey: token
+        PasswordLength: 64
+        ExcludePunctuation: true
+
   ChatRole:
     Type: AWS::IAM::Role
     Properties:
@@ -538,6 +599,9 @@ Resources:
           CHAT_STATE_TABLE: !Ref ChatStateTable
           QUESTIONS_PER_MINUTE: !Ref ChatQuestionsPerMinute
           QUESTIONS_PER_DAY: !Ref ChatQuestionsPerDay
+          GLOBAL_QUESTIONS_PER_DAY: !Ref ChatGlobalQuestionsPerDay
+          GLOBAL_QUESTIONS_PER_MONTH: !Ref ChatGlobalQuestionsPerMonth
+          ORIGIN_VERIFICATION_TOKEN: !Sub '{{resolve:secretsmanager:${ChatOriginSecret}:SecretString:token}}'
           AUTH_DOMAIN: !Sub 'https://${ChatUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com'
           AUTH_CLIENT_ID: !Ref ChatUserPoolClient
           MODEL_ARN: !If
@@ -549,6 +613,8 @@ Resources:
         ZipFile: |
           import base64
           import hashlib
+          import hmac
+          from datetime import datetime, timezone
           import json
           import os
           import re
@@ -590,8 +656,9 @@ Resources:
               pass
 
           class QuotaExceededError(ValueError):
-              def __init__(self, retry_after):
+              def __init__(self, retry_after, global_limit=False):
                   self.retry_after = retry_after
+                  self.global_limit = global_limit
 
           def json_response(status_code, response_body, extra_headers=None):
               return {
@@ -614,10 +681,30 @@ Resources:
                   raise AuthenticationRequiredError()
               return user_id, authorization
 
-          def quota_counter_update(user_id, window_name, window_number, limit, expires_at):
+          def has_trusted_distribution(event):
+              supplied_token = next((value for name, value in event.get('headers', {}).items()
+                                     if name.lower() == 'x-portfolio-origin'), '')
+              return hmac.compare_digest(
+                  supplied_token.encode(), os.environ['ORIGIN_VERIFICATION_TOKEN'].encode())
+
+          def quota_identity(user_id, profile):
+              """Hash the canonical verified mailbox; unverified mailboxes never identify other users."""
+              email_address = profile.get('email', '')
+              verified = str(profile.get('email_verified', '')).lower() == 'true'
+              if not verified or not isinstance(email_address, str) or '@' not in email_address:
+                  return 'subject-' + user_id
+              local_part, domain = email_address.strip().lower().rsplit('@', 1)
+              local_part = local_part.split('+', 1)[0]
+              if domain in ('gmail.com', 'googlemail.com'):
+                  local_part = local_part.replace('.', '')
+                  domain = 'gmail.com'
+              canonical_address = local_part + '@' + domain
+              return 'mailbox-' + hashlib.sha256(canonical_address.encode()).hexdigest()
+
+          def quota_counter_update(quota_owner, window_name, window_number, limit, expires_at):
               return {'Update': {
                   'TableName': os.environ['CHAT_STATE_TABLE'],
-                  'Key': {'recordId': {'S': f'quota#{user_id}#{window_name}#{window_number}'}},
+                  'Key': {'recordId': {'S': f'quota#{quota_owner}#{window_name}#{window_number}'}},
                   'UpdateExpression': 'SET #count = if_not_exists(#count, :zero) + :one, expiresAt = :expiry',
                   'ConditionExpression': 'attribute_not_exists(#count) OR #count < :limit',
                   'ExpressionAttributeNames': {'#count': 'requestCount'},
@@ -625,24 +712,34 @@ Resources:
                       ':zero': {'N': '0'}, ':one': {'N': '1'},
                       ':limit': {'N': str(limit)}, ':expiry': {'N': str(expires_at)}}}}
 
-          def consume_user_quota(user_id):
-              """Increment both fixed-window counters atomically before any model invocation."""
+          def consume_chat_quota(quota_owner):
+              """Atomically consume user and global allowances before any model invocation."""
               current_time = int(time.time())
               minute_reset = (current_time // 60 + 1) * 60
               day_reset = (current_time // 86400 + 1) * 86400
+              current_month = datetime.fromtimestamp(current_time, timezone.utc).replace(
+                  day=1, hour=0, minute=0, second=0, microsecond=0)
+              next_month = current_month.replace(
+                  year=current_month.year + (1 if current_month.month == 12 else 0),
+                  month=current_month.month % 12 + 1)
+              month_reset = int(next_month.timestamp())
               updates = [
-                  quota_counter_update(user_id, 'minute', current_time // 60,
+                  quota_counter_update(quota_owner, 'minute', current_time // 60,
                       int(os.environ['QUESTIONS_PER_MINUTE']), minute_reset + 86400),
-                  quota_counter_update(user_id, 'day', current_time // 86400,
-                      int(os.environ['QUESTIONS_PER_DAY']), day_reset + 86400)]
+                  quota_counter_update(quota_owner, 'day', current_time // 86400,
+                      int(os.environ['QUESTIONS_PER_DAY']), day_reset + 86400),
+                  quota_counter_update('global', 'day', current_time // 86400,
+                      int(os.environ['GLOBAL_QUESTIONS_PER_DAY']), day_reset + 86400),
+                  quota_counter_update('global', 'month', current_month.strftime('%Y-%m'),
+                      int(os.environ['GLOBAL_QUESTIONS_PER_MONTH']), month_reset + 86400)]
               try:
                   state_client.transact_write_items(TransactItems=updates)
               except ClientError as error:
                   reasons = error.response.get('CancellationReasons', [])
-                  for position, reason in enumerate(reasons):
+                  for position, reason in reversed(list(enumerate(reasons))):
                       if reason.get('Code') == 'ConditionalCheckFailed':
-                          reset_time = minute_reset if position == 0 else day_reset
-                          raise QuotaExceededError(reset_time - current_time) from error
+                          reset_time = [minute_reset, day_reset, day_reset, month_reset][position]
+                          raise QuotaExceededError(reset_time - current_time, position >= 2) from error
                   raise
 
           def conversation_key(session_id):
@@ -675,7 +772,7 @@ Resources:
                   if unicodedata.category(character)[0] in ('L', 'M') or character in " '-.")
               return ' '.join(clean_name.split())[:60]
 
-          def load_visitor_name(user_id, authorization):
+          def load_visitor_profile(user_id, authorization):
               """Read profile attributes from Cognito, never from client-submitted display names."""
               profile_request = Request(os.environ['AUTH_DOMAIN'] + '/oauth2/userInfo',
                                         headers={'Authorization': authorization})
@@ -688,7 +785,7 @@ Resources:
                   raise
               if profile.get('sub') != user_id:
                   raise AuthenticationRequiredError()
-              return sanitize_display_name(profile)
+              return profile
 
           def has_allowed_origin(event):
               headers = {
@@ -778,7 +875,7 @@ Resources:
                   'error': 'The assistant is busy or unavailable. Please try again shortly.'})
 
           def handler(event, context):
-              if not has_allowed_origin(event):
+              if not has_trusted_distribution(event) or not has_allowed_origin(event):
                   return json_response(403, {'error': 'Origin not allowed.'})
               try:
                   user_id, authorization = authenticated_identity(event)
@@ -793,8 +890,9 @@ Resources:
                   return json_response(400, {'error': 'Enter a question of 1 to 1000 characters.'})
               try:
                   require_owned_conversation(user_id, session_id)
-                  consume_user_quota(user_id)
-                  visitor_name = load_visitor_name(user_id, authorization)
+                  visitor_profile = load_visitor_profile(user_id, authorization)
+                  consume_chat_quota(quota_identity(user_id, visitor_profile))
+                  visitor_name = sanitize_display_name(visitor_profile)
                   retrieval_request = build_retrieval_request(question, session_id, visitor_name)
                   retrieval_result = bedrock_client.retrieve_and_generate(**retrieval_request)
                   remember_conversation(user_id, retrieval_result['sessionId'])
@@ -806,7 +904,9 @@ Resources:
                   return json_response(403, {'error': 'This conversation has expired or belongs to another account. Start a new conversation.'})
               except QuotaExceededError as error:
                   return json_response(429, {
-                      'error': 'Your chat limit has been reached. Please try again after the limit resets.',
+                      'error': 'The assistant has reached its shared allowance. Please try again after it resets.'
+                          if error.global_limit else 'Your chat limit has been reached. Please try again after the limit resets.',
+                      'limitScope': 'global' if error.global_limit else 'user',
                       'retryAfterSeconds': error.retry_after}, {'Retry-After': str(error.retry_after)})
               except ClientError as error:
                   return service_error_response(error)
@@ -874,6 +974,109 @@ Resources:
         ThrottlingBurstLimit: 4
         ThrottlingRateLimit: 1
 
+  ChatEdgeFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub '${AWS::StackName}-chat-edge'
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Reject unsupported chat requests before they reach API Gateway.
+        Runtime: cloudfront-js-2.0
+      FunctionCode: !Sub |
+        function handler(event) {
+          var request = event.request;
+          var origin = request.headers.origin ? request.headers.origin.value : '';
+          var allowedOrigins = ['https://${DomainName}', 'https://www.${DomainName}',
+            'https://${GitHubBranch}.${PortfolioApp.DefaultDomain}'];
+          var headers = {'cache-control': {value: 'no-store'}};
+          if (allowedOrigins.indexOf(origin) >= 0) {
+            headers['access-control-allow-origin'] = {value: origin};
+          }
+          if (request.uri !== '/chat') return {statusCode: 404, headers: headers};
+          if (request.method !== 'POST' && request.method !== 'OPTIONS') {
+            return {statusCode: 405, headers: headers};
+          }
+          if (allowedOrigins.indexOf(origin) < 0) return {statusCode: 403, headers: headers};
+          if (request.method === 'POST' && (!request.headers.authorization ||
+              !/^Bearer\s+\S+$/.test(request.headers.authorization.value))) {
+            return {statusCode: 401, headers: headers};
+          }
+          return request;
+        }
+
+  ChatCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub '${AWS::StackName}-chat-no-cache'
+        MinTTL: 0
+        DefaultTTL: 0
+        MaxTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: false
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  ChatOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: !Sub '${AWS::StackName}-chat-origin'
+        CookiesConfig:
+          CookieBehavior: none
+        HeadersConfig:
+          HeaderBehavior: allExcept
+          Headers: [host]
+        QueryStringsConfig:
+          QueryStringBehavior: none
+
+  ChatDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        IPV6Enabled: true
+        HttpVersion: http2and3
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+        Origins:
+          - Id: ChatApiOrigin
+            DomainName: !Sub '${ChatApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}'
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+            OriginCustomHeaders:
+              - HeaderName: X-Portfolio-Origin
+                HeaderValue: !Sub '{{resolve:secretsmanager:${ChatOriginSecret}:SecretString:token}}'
+        DefaultCacheBehavior:
+          TargetOriginId: ChatApiOrigin
+          ViewerProtocolPolicy: https-only
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+          CachedMethods: [GET, HEAD]
+          CachePolicyId: !Ref ChatCachePolicy
+          OriginRequestPolicyId: !Ref ChatOriginRequestPolicy
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt ChatEdgeFunction.FunctionARN
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 404
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 500
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 502
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 503
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 504
+            ErrorCachingMinTTL: 0
+
   ChatPermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -890,7 +1093,7 @@ Outputs:
   ChatAuthenticationClientId:
     Value: !Ref ChatUserPoolClient
   ChatApiURL:
-    Value: !Sub 'https://${ChatApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/chat'
+    Value: !Sub 'https://${ChatDistribution.DomainName}/chat'
   CvSourceBucket:
     Value: !Ref CvBucket
   CvKnowledgeBaseId:

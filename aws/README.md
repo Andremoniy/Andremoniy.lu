@@ -15,9 +15,9 @@ GitHub knowledge/cv.txt -> Amplify build -> private S3 source bucket
                                       S3 vector bucket/index
 
 Browser sign-in -> Cognito -> configured social provider or email account
-Floating chat -> HTTP API Gateway JWT authorizer -> Lambda -> Bedrock RetrieveAndGenerate
-                                                     |
-                                      DynamoDB per-user quotas/session ownership
+Floating chat -> CloudFront -> HTTP API Gateway JWT authorizer -> Lambda -> Bedrock
+                                                                  |
+                                  DynamoDB user/global quotas and session ownership
 ```
 
 Amplify publishes the six static pages and official App Store artwork. Its build
@@ -73,17 +73,29 @@ the `portfolio-chat/ask` scope. Lambda additionally checks the token type and
 client ID. CORS is an additional browser restriction, not the authentication
 mechanism. Sign-out clears local tokens and ends the Cognito login session.
 
-`ChatQuestionsPerMinute` and `ChatQuestionsPerDay` default to 10 and 100. DynamoDB
-uses one counter per Cognito `sub` and fixed UTC minute/day window. A single
-transaction conditionally increments both counters before generation; parallel
-requests cannot bypass either limit. Valid requests that reach quota consumption
-count even if a subsequent profile/model call fails. Invalid input and rejected
+`ChatQuestionsPerMinute` and `ChatQuestionsPerDay` default to 10 and 100.
+`ChatGlobalQuestionsPerDay` and `ChatGlobalQuestionsPerMonth` default to 1,000 and
+10,000 across all users. DynamoDB uses fixed UTC minute/day/calendar-month windows.
+A single transaction conditionally increments all four counters before generation;
+parallel requests cannot bypass a limit or partially consume another counter when
+one allowance is exhausted. Valid requests that reach quota consumption count even
+if a subsequent model call fails. Invalid input and rejected
 conversation ownership do not consume quota. Throttled responses include reset
 timing. TTL cleans up old counters, while window keys enforce resets immediately.
-These limits apply across devices for the same Cognito user, independently of
-the API-wide request-rate protection. Separate unlinked provider accounts have
-different Cognito IDs and therefore separate quotas; email addresses are not
-automatically trusted for account linking.
+Verified mailboxes identify the user quota across devices and provider accounts.
+The canonical form is lowercase with the `+tag` removed; consumer Gmail addresses
+also ignore dots and normalize `googlemail.com` to `gmail.com`. Dots in other
+domains remain significant. Only the canonical mailbox's SHA-256 hash appears in
+the quota key, never the raw or tagged address. Without a verified email, the
+Cognito subject identifies the quota. Unverified email claims cannot consume
+another mailbox's quota. Conversation ownership remains tied to the Cognito
+subject, and accounts are not automatically linked by email.
+
+Global limits stop model invocations across every account once exhausted, while
+the static site remains available. The UI distinguishes shared exhaustion from
+a personal quota. These are request-count limits, not dollar-denominated spending
+caps: API, identity, database and traffic charges can continue after model calls
+stop. Existing external budget alerts are independent of these counters.
 
 The same DynamoDB table stores hashed conversation IDs, their owner ID and a
 rolling one-hour expiry. Lambda checks ownership and expiry before resuming a
@@ -92,6 +104,51 @@ The user pool stores identity attributes. Lambda retrieves the visitor's name
 from Cognito's authenticated userInfo endpoint, verifies the returned subject,
 sanitizes the name and includes it as data in the generation prompt. A name is
 used naturally when shared by the provider; it is not invented when unavailable.
+
+## Email alias protection
+
+A Cognito pre-sign-up Lambda rejects email addresses containing `+` in the local
+part and requests the base address instead. This applies before local or federated
+account creation. It uses no database lookup: Cognito's email-username uniqueness
+prevents duplicate base-address accounts atomically. The trigger leaves email
+verification enabled and never auto-confirms an account.
+
+Cognito's hosted sign-up flow does not provide a supported pre-sign-up response
+field for silently replacing the supplied email address. Rejection ensures new
+accounts store an untagged contact email while avoiding verification to a silently
+rewritten recipient. Literal `+` addresses are therefore unsupported by this site's
+registration policy. Existing tagged accounts are not migrated or deleted; their
+verified aliases share a canonical quota identity. Gmail dot variations can still
+produce distinct Cognito accounts but share the same application allowance.
+
+## CloudFront API perimeter
+
+The chat endpoint is the HTTPS CloudFront URL in `ChatApiURL`. A viewer-request
+function accepts only `POST /chat` and its `OPTIONS` preflight from configured
+website origins. POST requests require a bearer header; API Gateway still performs
+the actual JWT validation. CORS checks are additional browser restrictions and
+can be spoofed by non-browser clients.
+
+Chat responses and errors are not cached. The distribution forwards authorization
+and CORS headers, uses HTTPS to the API origin, and replaces the viewer's origin
+verification header with a generated server-only token from Secrets Manager.
+Lambda compares that token before reading application state or invoking Bedrock.
+Authenticated direct-origin requests without the token are rejected before quota
+consumption and generation. The underlying API Gateway endpoint remains publicly
+reachable, so direct-origin attempts can still incur API and Lambda charges.
+
+CloudFront uses pay-as-you-go pricing and its default certificate, with
+`PriceClass_100`. There is no paid WAF web ACL, paid pricing-plan subscription,
+custom API domain or separate certificate. Shield Standard supplies basic network
+DDoS protection; CloudFront alone does not provide WAF bot/rate rules. Applicable
+free-tier allowances are account-wide, and proxy requests, origin transfer and
+excess usage can incur charges. The origin token adds one Secrets Manager secret
+(standard list price approximately USD 0.40/month, plus API calls). This perimeter
+is not an account-wide billing cap.
+
+The switch from the API Gateway URL to the CloudFront URL requires a stack update
+and an Amplify rebuild. The stack creates the distribution and updates
+`CHAT_API_URL`; the rebuild publishes that URL to the browser configuration.
 
 ## Identity provider configuration
 
@@ -132,7 +189,8 @@ environment variables instead of producing a disconnected release.
 ### Prerequisites
 
 - AWS CLI v2 and an authenticated local profile with CloudFormation, Amplify,
-  Route 53, IAM, Cognito, DynamoDB, Lambda, API Gateway, S3, S3 Vectors, Bedrock and CloudWatch Logs
+  CloudFront, Secrets Manager, Route 53, IAM, Cognito, DynamoDB, Lambda,
+  API Gateway, S3, S3 Vectors, Bedrock and CloudWatch Logs
   deployment permissions, including IAM role passing.
 - The repository source available locally and the application changes available
   on the configured GitHub branch for the subsequent Amplify release.
@@ -235,6 +293,8 @@ aws cloudformation deploy `
     ChatInferenceProfileId=eu.amazon.nova-lite-v1:0 `
     ChatQuestionsPerMinute=10 `
     ChatQuestionsPerDay=100 `
+    ChatGlobalQuestionsPerDay=1000 `
+    ChatGlobalQuestionsPerMonth=10000 `
   --region $AwsRegion `
   --profile $AwsProfile
 ```

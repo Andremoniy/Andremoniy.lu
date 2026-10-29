@@ -11,9 +11,14 @@ question automatically. Cognito supports email accounts and optional Google,
 Facebook/Meta, Apple, Amazon and Microsoft identities. Provider registrations
 and Secrets Manager credentials determine which social options are enabled.
 
-The API requires a Cognito access token. DynamoDB enforces per-user quotas of
+CloudFront fronts the API, rejects unsupported requests at the edge and forwards
+authorized chat requests without caching. The API requires a Cognito access token
+and a private CloudFront origin token. DynamoDB enforces per-user quotas of
 10 questions per minute and 100 per UTC day, with atomic counters shared across
-the user's devices. Conversation ownership is checked server-side. The browser
+the user's devices, plus shared limits of 1,000 questions per UTC day and 10,000
+per UTC calendar month. Verified email aliases share a normalized mailbox quota
+identity; only its hash is stored in the quota table. New registrations require
+a base email address without a `+tag`. Conversation ownership is checked server-side. The browser
 keeps the visible transcript in memory and the short-lived access token in
 tab-scoped session storage. The authenticated profile name personalizes replies
 when available; missing names receive generic wording. The tailored-CV recruiter

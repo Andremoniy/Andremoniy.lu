@@ -102,6 +102,9 @@
         pending.remove(); requireSignIn(question); return;
       }
       if (response.status === 429 && data.retryAfterSeconds) {
+        if (data.limitScope === 'global') {
+          throw new Error('The assistant has reached its shared allowance and is temporarily unavailable. Please try again after the allowance resets.');
+        }
         const minutes = Math.max(1, Math.ceil(data.retryAfterSeconds / 60));
         throw new Error(`Your chat limit has been reached. Try again in about ${minutes} minute${minutes === 1 ? '' : 's'}.`);
       }
