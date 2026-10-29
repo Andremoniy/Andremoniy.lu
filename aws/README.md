@@ -103,12 +103,26 @@ mechanism. Sign-out clears local tokens and ends the Cognito login session.
 `ChatQuestionsPerMinute` and `ChatQuestionsPerDay` default to 10 and 100.
 `ChatGlobalQuestionsPerDay` and `ChatGlobalQuestionsPerMonth` default to 1,000 and
 10,000 across all users. DynamoDB uses fixed UTC minute/day/calendar-month windows.
-A single transaction conditionally increments all four counters before generation;
-parallel requests cannot bypass a limit or partially consume another counter when
-one allowance is exhausted. Valid requests that reach quota consumption count even
+A single transaction updates one persistent user row and one persistent global row
+before generation. Revision checks and bounded retries prevent concurrent requests
+from overwriting increments or partially consuming another allowance when one
+limit is exhausted. Valid requests that reach quota consumption count even
 if a subsequent model call fails. Invalid input and rejected
 conversation ownership do not consume quota. Throttled responses include reset
-timing. TTL cleans up old counters, while window keys enforce resets immediately.
+timing. Expired periods reset in place on the next accepted request; the request
+then increments the renewed counter to one. No scheduled reset job is needed.
+The browser displays the remaining wait in hours and minutes, and the API returns
+both `retryAfterSeconds` and `quotaResetsAt` with HTTP 429.
+
+`ChatStateTable` contains `quota#<quota identity>` and one `quota#global` row.
+Each row has a numeric `revision` and readable UTC `updatedAt`. User rows contain
+`minutePeriodStart`, `minuteRequestCount`, `minuteResetsAt`, `dayPeriodStart`,
+`dayRequestCount`, `dayResetsAt`, the latest Cognito owner and verified normalized
+email when available. The global row contains day/month fields and no user email.
+Rows do not carry TTL timestamps and persist until manually deleted. TTL stays
+enabled to remove legacy time-window and session rows. First use of a persistent
+row seeds its active counters from the corresponding legacy rows, guarded by
+transactional condition checks; future requests no longer read those old counters.
 Verified mailboxes identify the user quota across devices and provider accounts.
 The canonical form is lowercase with the `+tag` removed; consumer Gmail addresses
 also ignore dots and normalize `googlemail.com` to `gmail.com`. Dots in other
@@ -124,14 +138,14 @@ a personal quota. These are request-count limits, not dollar-denominated spendin
 caps: API, identity, database and traffic charges can continue after model calls
 stop. Existing external budget alerts are independent of these counters.
 
-The state table also stores hashed conversation IDs, their owner ID and a
-five-minute inactivity deadline. Lambda checks ownership and the deadline before
-resuming a Bedrock session. A separate encrypted history table retains timestamped
+The history table stores hashed conversation IDs, their owner ID and a
+five-minute inactivity deadline in conversation summaries. Lambda checks ownership
+and the deadline there before resuming a Bedrock session. It also retains timestamped
 questions and answers, grouped by conversation and linked to the Cognito subject.
 Its summary records the effective end time, extended on each exchange or set by
 an explicit session-close request. History has no automatic expiry, has
 point-in-time recovery enabled and is retained on stack deletion. Neither table
-stores access tokens or profile names. User quota and session records, history
+stores access tokens or profile names. User quota records, history
 summaries and individual exchanges include a separate `email` attribute from
 the verified Cognito profile, lowercase and without a plus tag. Shared quota
 records have no email. Missing or unverified email attributes are omitted.

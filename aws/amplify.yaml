@@ -628,7 +628,7 @@ Resources:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
-                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem]
+                Action: [dynamodb:GetItem, dynamodb:PutItem, dynamodb:UpdateItem, dynamodb:ConditionCheckItem]
                 Resource:
                   - !GetAtt ChatStateTable.Arn
                   - !GetAtt ChatHistoryTable.Arn
@@ -848,47 +848,109 @@ Resources:
                   update['ExpressionAttributeValues'][':email'] = {'S': email_address}
               return update
 
-          def quota_counter_update(quota_owner, window_name, window_number, limit, expires_at, email_address=''):
-              update = {
-                  'TableName': os.environ['CHAT_STATE_TABLE'],
-                  'Key': {'recordId': {'S': f'quota#{quota_owner}#{window_name}#{window_number}'}},
-                  'UpdateExpression': 'SET #count = if_not_exists(#count, :zero) + :one, expiresAt = :expiry',
-                  'ConditionExpression': 'attribute_not_exists(#count) OR #count < :limit',
-                  'ExpressionAttributeNames': {'#count': 'requestCount'},
-                  'ExpressionAttributeValues': {
-                      ':zero': {'N': '0'}, ':one': {'N': '1'},
-                      ':limit': {'N': str(limit)}, ':expiry': {'N': str(expires_at)}}}
-              return {'Update': include_email_in_update(update, email_address)}
+          def quota_timestamp(timestamp):
+              return datetime.fromtimestamp(timestamp, timezone.utc).isoformat().replace('+00:00', 'Z')
 
-          def consume_chat_quota(quota_owner, email_address=''):
-              """Atomically consume user and global allowances before any model invocation."""
-              current_time = int(time.time())
-              minute_reset = (current_time // 60 + 1) * 60
-              day_reset = (current_time // 86400 + 1) * 86400
+          def quota_windows(current_time):
               current_month = datetime.fromtimestamp(current_time, timezone.utc).replace(
                   day=1, hour=0, minute=0, second=0, microsecond=0)
               next_month = current_month.replace(
                   year=current_month.year + (1 if current_month.month == 12 else 0),
                   month=current_month.month % 12 + 1)
-              month_reset = int(next_month.timestamp())
-              updates = [
-                  quota_counter_update(quota_owner, 'minute', current_time // 60,
-                      int(os.environ['QUESTIONS_PER_MINUTE']), minute_reset + 86400, email_address),
-                  quota_counter_update(quota_owner, 'day', current_time // 86400,
-                      int(os.environ['QUESTIONS_PER_DAY']), day_reset + 86400, email_address),
-                  quota_counter_update('global', 'day', current_time // 86400,
-                      int(os.environ['GLOBAL_QUESTIONS_PER_DAY']), day_reset + 86400),
-                  quota_counter_update('global', 'month', current_month.strftime('%Y-%m'),
-                      int(os.environ['GLOBAL_QUESTIONS_PER_MONTH']), month_reset + 86400)]
-              try:
-                  state_client.transact_write_items(TransactItems=updates)
-              except ClientError as error:
-                  reasons = error.response.get('CancellationReasons', [])
-                  for position, reason in reversed(list(enumerate(reasons))):
-                      if reason.get('Code') == 'ConditionalCheckFailed':
-                          reset_time = [minute_reset, day_reset, day_reset, month_reset][position]
-                          raise QuotaExceededError(reset_time - current_time, position >= 2) from error
-                  raise
+              day_start = current_time // 86400 * 86400
+              minute_start = current_time // 60 * 60
+              return (
+                  [('minute', minute_start, minute_start + 60, int(os.environ['QUESTIONS_PER_MINUTE']), str(current_time // 60)),
+                   ('day', day_start, day_start + 86400, int(os.environ['QUESTIONS_PER_DAY']), str(current_time // 86400))],
+                  [('day', day_start, day_start + 86400, int(os.environ['GLOBAL_QUESTIONS_PER_DAY']), str(current_time // 86400)),
+                   ('month', int(current_month.timestamp()), int(next_month.timestamp()), int(os.environ['GLOBAL_QUESTIONS_PER_MONTH']), current_month.strftime('%Y-%m'))])
+
+          def read_quota_record(quota_owner, windows):
+              """Seed a persistent row from current legacy counters on its first use."""
+              record = state_client.get_item(
+                  TableName=os.environ['CHAT_STATE_TABLE'],
+                  Key={'recordId': {'S': 'quota#' + quota_owner}}, ConsistentRead=True).get('Item', {})
+              if record:
+                  return record, True, []
+              record = {'recordId': {'S': 'quota#' + quota_owner}}
+              migration_checks = []
+              for window_name, start, reset, limit, legacy_window in windows:
+                  legacy_key = {'recordId': {'S': f'quota#{quota_owner}#{window_name}#{legacy_window}'}}
+                  legacy = state_client.get_item(
+                      TableName=os.environ['CHAT_STATE_TABLE'],
+                      Key=legacy_key,
+                      ConsistentRead=True).get('Item', {})
+                  record[window_name + 'PeriodStart'] = {'S': quota_timestamp(start)}
+                  record[window_name + 'RequestCount'] = legacy.get('requestCount', {'N': '0'})
+                  check = {'TableName': os.environ['CHAT_STATE_TABLE'], 'Key': legacy_key,
+                           'ConditionExpression': 'attribute_not_exists(recordId)'}
+                  if legacy:
+                      check.update({'ConditionExpression': '#count = :count',
+                          'ExpressionAttributeNames': {'#count': 'requestCount'},
+                          'ExpressionAttributeValues': {':count': legacy['requestCount']}})
+                  migration_checks.append({'ConditionCheck': check})
+              return record, False, migration_checks
+
+          def quota_record_write(record, exists, windows, current_time, email_address='', user_id=''):
+              next_record = {'recordId': record['recordId'],
+                             'revision': {'N': str(int(record.get('revision', {}).get('N', '0')) + 1)},
+                             'updatedAt': {'S': quota_timestamp(current_time)},
+                             **email_attributes(email_address)}
+              if user_id:
+                  next_record['owner'] = {'S': user_id}
+              blocked_resets = []
+              for window_name, start, reset, limit, legacy_window in windows:
+                  period_start = quota_timestamp(start)
+                  same_period = record.get(window_name + 'PeriodStart', {}).get('S') == period_start
+                  count = int(record.get(window_name + 'RequestCount', {}).get('N', '0')) if same_period else 0
+                  if count >= limit:
+                      blocked_resets.append(reset)
+                  next_record[window_name + 'PeriodStart'] = {'S': period_start}
+                  next_record[window_name + 'RequestCount'] = {'N': str(count + 1)}
+                  next_record[window_name + 'ResetsAt'] = {'S': quota_timestamp(reset)}
+              write = {'TableName': os.environ['CHAT_STATE_TABLE'], 'Item': next_record,
+                       'ConditionExpression': 'attribute_not_exists(recordId)'}
+              if exists:
+                  write.update({
+                      'ConditionExpression': '#revision = :revision',
+                      'ExpressionAttributeNames': {'#revision': 'revision'},
+                      'ExpressionAttributeValues': {':revision': record['revision']}})
+              return {'Put': write}, max(blocked_resets, default=0)
+
+          def is_quota_write_conflict(error):
+              error_code = error.response['Error']['Code']
+              if error_code == 'TransactionConflictException':
+                  return True
+              reasons = error.response.get('CancellationReasons', [])
+              return error_code == 'TransactionCanceledException' and all(
+                  reason.get('Code') in ('None', 'ConditionalCheckFailed', 'TransactionConflict')
+                  for reason in reasons)
+
+          def consume_chat_quota(quota_owner, email_address='', user_id=''):
+              """Renew counters in place and atomically reserve user and global allowances.
+
+              Revision checks prevent concurrent requests from overwriting increments.
+              UTC periods are renewed on the next request, independently of TTL cleanup.
+              """
+              for attempt in range(8):
+                  current_time = int(time.time())
+                  user_windows, global_windows = quota_windows(current_time)
+                  user_record, user_exists, user_migration = read_quota_record(quota_owner, user_windows)
+                  global_record, global_exists, global_migration = read_quota_record('global', global_windows)
+                  user_write, user_reset = quota_record_write(
+                      user_record, user_exists, user_windows, current_time, email_address, user_id)
+                  global_write, global_reset = quota_record_write(
+                      global_record, global_exists, global_windows, current_time)
+                  if global_reset or user_reset:
+                      raise QuotaExceededError((global_reset or user_reset) - current_time, bool(global_reset))
+                  try:
+                      state_client.transact_write_items(
+                          TransactItems=[user_write, global_write, *user_migration, *global_migration])
+                      return
+                  except ClientError as error:
+                      if not is_quota_write_conflict(error) or attempt == 7:
+                          raise
+                      time.sleep(min(0.005 * 2 ** attempt, 0.1))
 
           def conversation_key(session_id):
               return {'recordId': {'S': 'session#' + hashlib.sha256(session_id.encode()).hexdigest()}}
@@ -897,12 +959,13 @@ Resources:
               if not session_id:
                   return None
               conversation = state_client.get_item(
-                  TableName=os.environ['CHAT_STATE_TABLE'], Key=conversation_key(session_id),
+                  TableName=os.environ['CHAT_HISTORY_TABLE'], Key=history_key(session_id),
                   ConsistentRead=True).get('Item', {})
               if conversation.get('owner', {}).get('S') != user_id:
                   raise ConversationAccessError()
               if (conversation.get('closedAt') or
-                      int(conversation.get('expiresAt', {}).get('N', '0')) < int(time.time())):
+                      conversation.get('endReason', {}).get('S') == 'session_closed' or
+                      int(conversation.get('endsAt', {}).get('N', '0')) < int(time.time())):
                   return None
               return session_id
 
@@ -918,21 +981,16 @@ Resources:
               current_time = int(time.time())
               deadline = current_time + 300
               conversation_writes = [
-                  {'Put': {
-                      'TableName': os.environ['CHAT_STATE_TABLE'],
-                      'Item': {**conversation_key(session_id), **email_attributes(email_address), 'owner': {'S': user_id},
-                               'expiresAt': {'N': str(deadline)}},
-                      'ConditionExpression': '(attribute_not_exists(recordId) OR #owner = :owner) AND attribute_not_exists(closedAt)',
-                      'ExpressionAttributeNames': {'#owner': 'owner'},
-                      'ExpressionAttributeValues': {':owner': {'S': user_id}}}},
                   {'Update': {
                       'TableName': os.environ['CHAT_HISTORY_TABLE'],
                       'Key': history_key(session_id),
                       'UpdateExpression': 'SET #owner = :owner, startedAt = if_not_exists(startedAt, :now), lastActivityAt = :now, endsAt = :deadline, endReason = :reason',
+                      'ConditionExpression': '(attribute_not_exists(recordId) OR #owner = :owner) AND (attribute_not_exists(endReason) OR endReason <> :closed)',
                       'ExpressionAttributeNames': {'#owner': 'owner'},
                       'ExpressionAttributeValues': {
                           ':owner': {'S': user_id}, ':now': {'N': str(current_time)},
-                          ':deadline': {'N': str(deadline)}, ':reason': {'S': 'inactivity'}}}},
+                          ':deadline': {'N': str(deadline)}, ':reason': {'S': 'inactivity'},
+                          ':closed': {'S': 'session_closed'}}}},
                   {'Put': {
                       'TableName': os.environ['CHAT_HISTORY_TABLE'],
                       'Item': {**history_key(session_id, f'turn#{time.time_ns():020d}#{uuid.uuid4().hex}'),
@@ -940,7 +998,7 @@ Resources:
                                'owner': {'S': user_id},
                                'question': {'S': question}, 'answer': {'S': answer},
                                'createdAt': {'N': str(current_time)}}}}]
-              include_email_in_update(conversation_writes[1]['Update'], email_address)
+              include_email_in_update(conversation_writes[0]['Update'], email_address)
               state_client.transact_write_items(TransactItems=conversation_writes)
 
           def close_conversation(user_id, session_id):
@@ -948,22 +1006,13 @@ Resources:
               if not session_id or not require_owned_conversation(user_id, session_id):
                   return
               current_time = str(int(time.time()))
-              state_client.transact_write_items(TransactItems=[
-                  {'Update': {
-                      'TableName': os.environ['CHAT_STATE_TABLE'],
-                      'Key': conversation_key(session_id),
-                      'UpdateExpression': 'SET closedAt = :now',
-                      'ConditionExpression': '#owner = :owner',
-                      'ExpressionAttributeNames': {'#owner': 'owner'},
-                      'ExpressionAttributeValues': {':owner': {'S': user_id}, ':now': {'N': current_time}}}},
-                  {'Update': {
-                      'TableName': os.environ['CHAT_HISTORY_TABLE'],
-                      'Key': history_key(session_id),
-                      'UpdateExpression': 'SET endsAt = :now, endReason = :reason',
-                      'ConditionExpression': '#owner = :owner',
-                      'ExpressionAttributeNames': {'#owner': 'owner'},
-                      'ExpressionAttributeValues': {':owner': {'S': user_id},
-                          ':now': {'N': current_time}, ':reason': {'S': 'session_closed'}}}}])
+              state_client.update_item(
+                  TableName=os.environ['CHAT_HISTORY_TABLE'], Key=history_key(session_id),
+                  UpdateExpression='SET endsAt = :now, closedAt = :now, endReason = :reason',
+                  ConditionExpression='#owner = :owner AND endReason <> :reason',
+                  ExpressionAttributeNames={'#owner': 'owner'},
+                  ExpressionAttributeValues={':owner': {'S': user_id},
+                      ':now': {'N': current_time}, ':reason': {'S': 'session_closed'}})
 
           def sanitize_display_name(profile):
               supplied_name = profile.get('given_name') or profile.get('name') or ''
@@ -1110,7 +1159,7 @@ Resources:
                   session_id = require_owned_conversation(user_id, session_id)
                   visitor_profile = load_visitor_profile(user_id, authorization)
                   email_address = verified_user_email(visitor_profile)
-                  consume_chat_quota(quota_identity(user_id, visitor_profile), email_address)
+                  consume_chat_quota(quota_identity(user_id, visitor_profile), email_address, user_id)
                   visitor_name = sanitize_display_name(visitor_profile)
                   retrieval_request = build_retrieval_request(question, session_id, visitor_name)
                   retrieval_result = bedrock_client.retrieve_and_generate(**retrieval_request)
@@ -1128,6 +1177,7 @@ Resources:
                       'error': 'The assistant has reached its shared allowance. Please try again after it resets.'
                           if error.global_limit else 'Your chat limit has been reached. Please try again after the limit resets.',
                       'limitScope': 'global' if error.global_limit else 'user',
+                      'quotaResetsAt': quota_timestamp(int(time.time()) + error.retry_after),
                       'retryAfterSeconds': error.retry_after}, {'Retry-After': str(error.retry_after)})
               except ClientError as error:
                   return service_error_response(error)

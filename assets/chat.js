@@ -44,6 +44,15 @@
       body: JSON.stringify({action: 'close', sessionId: conversation})})
       .catch(() => {}).finally(() => clearTimeout(timeout));
   }
+  function quotaWaitTime(seconds) {
+    const totalMinutes = Math.max(1, Math.ceil(seconds / 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const parts = [];
+    if (hours) parts.push(`${hours} hour${hours === 1 ? '' : 's'}`);
+    if (minutes) parts.push(`${minutes} minute${minutes === 1 ? '' : 's'}`);
+    return parts.join(' ');
+  }
   window.addEventListener('pagehide', () => {
     closeConversation();
     sessionId = undefined;
@@ -124,11 +133,11 @@
         pending.remove(); requireSignIn(question); return;
       }
       if (response.status === 429 && data.retryAfterSeconds) {
+        const waitTime = quotaWaitTime(data.retryAfterSeconds);
         if (data.limitScope === 'global') {
-          throw new Error('The assistant has reached its shared allowance and is temporarily unavailable. Please try again after the allowance resets.');
+          throw new Error(`The assistant has reached its shared allowance. Try again in about ${waitTime}.`);
         }
-        const minutes = Math.max(1, Math.ceil(data.retryAfterSeconds / 60));
-        throw new Error(`Your chat limit has been reached. Try again in about ${minutes} minute${minutes === 1 ? '' : 's'}.`);
+        throw new Error(`Your chat limit has been reached. Try again in about ${waitTime}.`);
       }
       if (!response.ok) throw new Error(response.status === 429 ? 'The assistant is busy. Please wait a moment and try again.' : data.error || 'The assistant is temporarily unavailable. Please try again.');
       if (typeof data.answer !== 'string') throw new Error('The assistant returned an unexpected response. Please try again.');

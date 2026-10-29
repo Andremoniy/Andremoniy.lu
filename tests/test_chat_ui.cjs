@@ -89,6 +89,7 @@ async function run() {
   const resumedRequests = [];
   let responseStatus = 200;
   let globalLimit = false;
+  let retryAfterSeconds = 61;
   resumedDom.window.portfolioAuth = {
     ready: Promise.resolve({endpoint: 'https://api.example/chat'}),
     getAccessToken: () => resumedToken,
@@ -100,7 +101,7 @@ async function run() {
     resumedRequests.push(JSON.parse(options.body));
     return {ok: responseStatus === 200, status: responseStatus, json: async () => responseStatus === 200 ? {
       answer: 'Yes, he managed engineers.', sessionId: 'resumed-session',
-    } : responseStatus === 429 ? {retryAfterSeconds: 61, limitScope: globalLimit ? 'global' : 'user'} : {}};
+    } : responseStatus === 429 ? {retryAfterSeconds, limitScope: globalLimit ? 'global' : 'user'} : {}};
   };
   resumedDom.window.eval(source);
   await tick();
@@ -113,6 +114,11 @@ async function run() {
   resumedPanel.querySelector('form').dispatchEvent(new resumedDom.window.Event('submit', {cancelable: true}));
   await tick();
   assert.match(resumedPanel.textContent, /about 2 minutes/);
+  retryAfterSeconds = 7380;
+  resumedPanel.querySelector('input').value = 'Daily allowance?';
+  resumedPanel.querySelector('form').dispatchEvent(new resumedDom.window.Event('submit', {cancelable: true}));
+  await tick();
+  assert.match(resumedPanel.textContent, /about 2 hours 3 minutes/);
   globalLimit = true;
   resumedPanel.querySelector('input').value = 'One more question';
   resumedPanel.querySelector('form').dispatchEvent(new resumedDom.window.Event('submit', {cancelable: true}));

@@ -61,8 +61,15 @@ class ChatTests(unittest.TestCase):
         self.environment_patch.start()
         self.addCleanup(self.environment_patch.stop)
         self.state_client.get_item.return_value = {'Item': {
-            'owner': {'S': 'visitor-123'}, 'expiresAt': {'N': '9999999999'},
+            'owner': {'S': 'visitor-123'}, 'endsAt': {'N': '9999999999'},
         }}
+        self.quota_records = {}
+        def read_database_item(**request):
+            if request['TableName'] == 'chat-state':
+                record_id = request['Key']['recordId']['S']
+                return {'Item': self.quota_records.get(record_id, {})}
+            return self.state_client.get_item.return_value
+        self.state_client.get_item.side_effect = read_database_item
         self.profile_response = MagicMock()
         self.profile_response.__enter__.return_value.read.return_value = json.dumps({
             'sub': 'visitor-123', 'given_name': 'Alice',
@@ -108,7 +115,7 @@ class ChatTests(unittest.TestCase):
         response_body = json.loads(response['body'])
         self.assertEqual(['ING: team of 10'], response_body['sources'])
         self.assertEqual('Alice', response_body['visitorName'])
-        saved_conversation = self.state_client.transact_write_items.call_args.kwargs['TransactItems'][0]['Put']['Item']
+        saved_conversation = self.state_client.transact_write_items.call_args.kwargs['TransactItems'][1]['Put']['Item']
         self.assertEqual('visitor-123', saved_conversation['owner']['S'])
         self.assertNotIn('session-123', saved_conversation['recordId']['S'])
         self.assertNotIn('Alice', str(saved_conversation))
@@ -176,7 +183,7 @@ class ChatTests(unittest.TestCase):
             body = json.loads(response['body'])
             self.assertEqual(self.handler_module.SCOPE_REFUSAL, body['answer'])
             self.assertEqual([], body['sources'])
-            turn = self.state_client.transact_write_items.call_args.kwargs['TransactItems'][2]['Put']['Item']
+            turn = self.state_client.transact_write_items.call_args.kwargs['TransactItems'][1]['Put']['Item']
             self.assertEqual(self.handler_module.SCOPE_REFUSAL, turn['answer']['S'])
 
     def test_guardrail_configuration_cannot_be_overridden_by_the_client(self):
@@ -271,30 +278,28 @@ class ChatTests(unittest.TestCase):
         with patch.object(self.handler_module.time, 'time', return_value=1000000):
             self.handler_module.consume_chat_quota('alice')
             self.handler_module.consume_chat_quota('bob')
-        first_updates = self.state_client.transact_write_items.call_args_list[0].kwargs['TransactItems']
-        second_updates = self.state_client.transact_write_items.call_args_list[1].kwargs['TransactItems']
-        self.assertEqual(4, len(first_updates))
-        for first_update, second_update in zip(first_updates[:2], second_updates[:2]):
-            first_key = first_update['Update']['Key']['recordId']['S']
-            second_key = second_update['Update']['Key']['recordId']['S']
-            self.assertNotEqual(first_key, second_key)
-        self.assertEqual('10', first_updates[0]['Update']['ExpressionAttributeValues'][':limit']['N'])
-        self.assertEqual('100', first_updates[1]['Update']['ExpressionAttributeValues'][':limit']['N'])
-        self.assertEqual(first_updates[2:], second_updates[2:])
-        self.assertEqual('1000', first_updates[2]['Update']['ExpressionAttributeValues'][':limit']['N'])
-        self.assertEqual('10000', first_updates[3]['Update']['ExpressionAttributeValues'][':limit']['N'])
+        first_writes = self.state_client.transact_write_items.call_args_list[0].kwargs['TransactItems']
+        second_writes = self.state_client.transact_write_items.call_args_list[1].kwargs['TransactItems']
+        self.assertEqual(2, sum('Put' in write for write in first_writes))
+        self.assertEqual('quota#alice', first_writes[0]['Put']['Item']['recordId']['S'])
+        self.assertEqual('quota#bob', second_writes[0]['Put']['Item']['recordId']['S'])
+        self.assertEqual('1', first_writes[0]['Put']['Item']['minuteRequestCount']['N'])
+        self.assertEqual('1', first_writes[0]['Put']['Item']['dayRequestCount']['N'])
+        self.assertEqual(first_writes[1], second_writes[1])
 
     def test_quota_denial_returns_reset_time_and_stops_bedrock(self):
-        self.state_client.transact_write_items.side_effect = ClientError({
-            'Error': {'Code': 'TransactionCanceledException', 'Message': 'Quota exceeded'},
-            'CancellationReasons': [{'Code': 'None'}, {'Code': 'ConditionalCheckFailed'}],
-        }, 'TransactWriteItems')
+        self.quota_records['quota#subject-visitor-123'] = {
+            'recordId': {'S': 'quota#subject-visitor-123'}, 'revision': {'N': '5'},
+            'dayPeriodStart': {'S': self.handler_module.quota_timestamp(1000000 // 86400 * 86400)},
+            'dayRequestCount': {'N': '100'}}
         with patch.object(self.handler_module.time, 'time', return_value=1000000):
             response = self.request({'message': 'AWS?'})
         self.assertEqual(429, response['statusCode'])
         expected_reset_seconds = (1000000 // 86400 + 1) * 86400 - 1000000
         self.assertEqual(expected_reset_seconds, json.loads(response['body'])['retryAfterSeconds'])
         self.assertEqual(str(expected_reset_seconds), response['headers']['Retry-After'])
+        self.assertIn('quotaResetsAt', json.loads(response['body']))
+        self.state_client.transact_write_items.assert_not_called()
         self.bedrock_client.retrieve_and_generate.assert_not_called()
 
     def test_other_users_cannot_resume_a_conversation(self):
@@ -305,7 +310,7 @@ class ChatTests(unittest.TestCase):
         self.bedrock_client.retrieve_and_generate.assert_not_called()
 
     def test_expired_conversation_cannot_be_resumed(self):
-        self.state_client.get_item.return_value['Item']['expiresAt'] = {'N': '1'}
+        self.state_client.get_item.return_value['Item']['endsAt'] = {'N': '1'}
         self.bedrock_client.retrieve_and_generate.return_value = {
             'output': {'text': 'Fresh answer'}, 'sessionId': 'fresh-session'}
         self.assertEqual(200, self.request({'message': 'Follow up', 'sessionId': 'session-123'})['statusCode'])
@@ -317,8 +322,8 @@ class ChatTests(unittest.TestCase):
         with patch.object(self.handler_module.time, 'time', return_value=1000000):
             self.assertEqual(200, self.request({'message': 'Leadership?'})['statusCode'])
         writes = self.state_client.transact_write_items.call_args.kwargs['TransactItems']
-        summary = writes[1]['Update']
-        turn = writes[2]['Put']['Item']
+        summary = writes[0]['Update']
+        turn = writes[1]['Put']['Item']
         self.assertEqual('chat-history', summary['TableName'])
         self.assertEqual('1000300', summary['ExpressionAttributeValues'][':deadline']['N'])
         self.assertEqual('visitor-123', summary['ExpressionAttributeValues'][':owner']['S'])
@@ -330,9 +335,9 @@ class ChatTests(unittest.TestCase):
     def test_close_does_not_consume_quota_or_call_bedrock(self):
         self.assertEqual(200, self.request({'action': 'close', 'sessionId': 'session-123'})['statusCode'])
         self.bedrock_client.retrieve_and_generate.assert_not_called()
-        self.assertEqual(1, self.state_client.transact_write_items.call_count)
-        writes = self.state_client.transact_write_items.call_args.kwargs['TransactItems']
-        self.assertEqual('session_closed', writes[1]['Update']['ExpressionAttributeValues'][':reason']['S'])
+        self.state_client.transact_write_items.assert_not_called()
+        self.assertEqual('chat-history', self.state_client.update_item.call_args.kwargs['TableName'])
+        self.assertEqual('session_closed', self.state_client.update_item.call_args.kwargs['ExpressionAttributeValues'][':reason']['S'])
 
     def test_other_user_cannot_close_conversation(self):
         self.state_client.get_item.return_value['Item']['owner'] = {'S': 'another-visitor'}
@@ -354,15 +359,13 @@ class ChatTests(unittest.TestCase):
             'output': {'text': 'Answer'}, 'sessionId': 'session-123'}
         self.assertEqual(200, self.request({'message': 'Hello', 'email': 'attacker@example.com'})['statusCode'])
         quota_writes = self.state_client.transact_write_items.call_args_list[0].kwargs['TransactItems']
-        for write in quota_writes[:2]:
-            self.assertEqual({'S': 'alice@example.com'}, write['Update']['ExpressionAttributeValues'][':email'])
-        for write in quota_writes[2:]:
-            self.assertNotIn(':email', write['Update']['ExpressionAttributeValues'])
+        self.assertEqual({'S': 'alice@example.com'}, quota_writes[0]['Put']['Item']['email'])
+        self.assertEqual({'S': 'visitor-123'}, quota_writes[0]['Put']['Item']['owner'])
+        self.assertNotIn('email', quota_writes[1]['Put']['Item'])
         history_writes = self.state_client.transact_write_items.call_args_list[1].kwargs['TransactItems']
-        self.assertEqual({'S': 'alice@example.com'}, history_writes[0]['Put']['Item']['email'])
-        self.assertEqual({'S': 'alice@example.com'}, history_writes[1]['Update']['ExpressionAttributeValues'][':email'])
-        self.assertEqual({'S': 'alice@example.com'}, history_writes[2]['Put']['Item']['email'])
-        self.assertEqual({'S': 'visitor-123'}, history_writes[2]['Put']['Item']['owner'])
+        self.assertEqual({'S': 'alice@example.com'}, history_writes[0]['Update']['ExpressionAttributeValues'][':email'])
+        self.assertEqual({'S': 'alice@example.com'}, history_writes[1]['Put']['Item']['email'])
+        self.assertEqual({'S': 'visitor-123'}, history_writes[1]['Put']['Item']['owner'])
         self.assertNotIn('alice@example.com', json.dumps(self.bedrock_client.retrieve_and_generate.call_args.kwargs))
 
     def test_cognito_client_can_read_email_verification_status(self):
@@ -382,9 +385,9 @@ class ChatTests(unittest.TestCase):
         for question in ('Leadership?', 'Which teams?', 'What responsibilities?'):
             self.assertEqual(200, self.request({
                 'message': question, 'sessionId': 'session-123'})['statusCode'])
-        saved_turns = [call.kwargs['TransactItems'][2]['Put']['Item']
+        saved_turns = [call.kwargs['TransactItems'][1]['Put']['Item']
             for call in self.state_client.transact_write_items.call_args_list
-            if 'Put' in call.kwargs['TransactItems'][2]]
+            if 'Update' in call.kwargs['TransactItems'][0]]
         self.assertEqual(3, len(saved_turns))
         self.assertEqual(3, len({turn['entryId']['S'] for turn in saved_turns}))
         for turn in saved_turns:
@@ -399,10 +402,9 @@ class ChatTests(unittest.TestCase):
             self.profile_response.__enter__.return_value.read.return_value = json.dumps(profile).encode()
             self.assertEqual(200, self.request({'message': 'Hello'})['statusCode'])
             history_writes = self.state_client.transact_write_items.call_args.kwargs['TransactItems']
-            self.assertNotIn('email', history_writes[0]['Put']['Item'])
-            self.assertNotIn(':email', history_writes[1]['Update']['ExpressionAttributeValues'])
-            self.assertNotIn('email', history_writes[2]['Put']['Item'])
-            self.assertEqual({'S': 'visitor-123'}, history_writes[2]['Put']['Item']['owner'])
+            self.assertNotIn(':email', history_writes[0]['Update']['ExpressionAttributeValues'])
+            self.assertNotIn('email', history_writes[1]['Put']['Item'])
+            self.assertEqual({'S': 'visitor-123'}, history_writes[1]['Put']['Item']['owner'])
 
     def test_profile_identity_must_match_token_subject(self):
         self.profile_response.__enter__.return_value.read.return_value = b'{"sub":"another-visitor"}'
@@ -481,12 +483,14 @@ class ChatTests(unittest.TestCase):
         })
         self.assertNotEqual(first_identity, second_identity)
 
-    def test_global_month_limit_returns_calendar_reset_and_stops_bedrock(self):
-        self.state_client.transact_write_items.side_effect = ClientError({
-            'Error': {'Code': 'TransactionCanceledException', 'Message': 'Quota exceeded'},
-            'CancellationReasons': [{'Code': 'None'}] * 3 + [{'Code': 'ConditionalCheckFailed'}],
-        }, 'TransactWriteItems')
-        with patch.object(self.handler_module.time, 'time', return_value=1798761599):
+    def test_global_month_limit_returns_correct_reset_time(self):
+        current_time = 1798761599
+        user_windows, global_windows = self.handler_module.quota_windows(current_time)
+        self.quota_records['quota#global'] = {
+            'recordId': {'S': 'quota#global'}, 'revision': {'N': '2'},
+            'monthPeriodStart': {'S': self.handler_module.quota_timestamp(global_windows[1][1])},
+            'monthRequestCount': {'N': '10000'}}
+        with patch.object(self.handler_module.time, 'time', return_value=current_time):
             response = self.request({'message': 'AWS?'})
         response_body = json.loads(response['body'])
         self.assertEqual(429, response['statusCode'])
@@ -495,12 +499,13 @@ class ChatTests(unittest.TestCase):
         self.bedrock_client.retrieve_and_generate.assert_not_called()
 
     def test_global_day_limit_applies_independently_of_user_limits(self):
-        self.state_client.transact_write_items.side_effect = ClientError({
-            'Error': {'Code': 'TransactionCanceledException', 'Message': 'Quota exceeded'},
-            'CancellationReasons': [{'Code': 'None'}] * 2 + [
-                {'Code': 'ConditionalCheckFailed'}, {'Code': 'None'}],
-        }, 'TransactWriteItems')
-        response = self.request({'message': 'AWS?'})
+        current_time = 1000000
+        self.quota_records['quota#global'] = {
+            'recordId': {'S': 'quota#global'}, 'revision': {'N': '2'},
+            'dayPeriodStart': {'S': self.handler_module.quota_timestamp(current_time // 86400 * 86400)},
+            'dayRequestCount': {'N': '1000'}}
+        with patch.object(self.handler_module.time, 'time', return_value=current_time):
+            response = self.request({'message': 'AWS?'})
         self.assertEqual('global', json.loads(response['body'])['limitScope'])
         self.bedrock_client.retrieve_and_generate.assert_not_called()
 
@@ -508,13 +513,10 @@ class ChatTests(unittest.TestCase):
         leap_day = self.handler_module.datetime(2028, 2, 29, tzinfo=self.handler_module.timezone.utc)
         with patch.object(self.handler_module.time, 'time', return_value=leap_day.timestamp()):
             self.handler_module.consume_chat_quota('visitor')
-        monthly_update = self.state_client.transact_write_items.call_args.kwargs['TransactItems'][3]['Update']
-        self.assertEqual('quota#global#month#2028-02', monthly_update['Key']['recordId']['S'])
-        march_first = self.handler_module.datetime(2028, 3, 1, tzinfo=self.handler_module.timezone.utc)
-        self.assertEqual(
-            str(int(march_first.timestamp()) + 86400),
-            monthly_update['ExpressionAttributeValues'][':expiry']['N'],
-        )
+        global_record = self.state_client.transact_write_items.call_args.kwargs['TransactItems'][1]['Put']['Item']
+        self.assertEqual('quota#global', global_record['recordId']['S'])
+        self.assertEqual('2028-02-01T00:00:00Z', global_record['monthPeriodStart']['S'])
+        self.assertEqual('2028-03-01T00:00:00Z', global_record['monthResetsAt']['S'])
 
 
 class SignupTests(unittest.TestCase):

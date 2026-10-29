@@ -29,7 +29,12 @@ and a private CloudFront origin token. DynamoDB enforces per-user quotas of
 10 questions per minute and 100 per UTC day, with atomic counters shared across
 the user's devices, plus shared limits of 1,000 questions per UTC day and 10,000
 per UTC calendar month. Verified email aliases share a normalized mailbox quota
-identity; its hash identifies quota keys, and a separate `email` attribute stores
+row: `ChatStateTable` keeps one persistent row per quota identity and one global
+row. Minute/day and global day/month counts renew in place on the next request,
+with readable UTC period start/reset timestamps and revision-checked transactions.
+Existing time-window rows are read once during migration and left to TTL cleanup.
+Conversation ownership and inactivity deadlines live in history summaries.
+The identity hash identifies quota keys, and a separate `email` attribute stores
 the verified, lowercase address without a plus tag on user-specific records.
 Shared quota records have no user email. New registrations require
 a base email address without a `+tag`. Conversation ownership is checked server-side. The browser
