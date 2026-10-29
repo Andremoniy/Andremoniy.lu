@@ -297,7 +297,7 @@ Resources:
             OutputEnabled: true
             InputAction: BLOCK
             OutputAction: BLOCK
-          - Name: Personalized professional advice
+          - Name: Medical legal and financial advice
             Type: DENY
             Definition: Medical diagnoses, treatment recommendations, investment advice, legal strategy, and personalized financial recommendations.
             Examples:
@@ -321,7 +321,7 @@ Resources:
     Type: AWS::Bedrock::GuardrailVersion
     Properties:
       GuardrailIdentifier: !GetAtt ChatGuardrail.GuardrailId
-      Description: CV-only assistant policy v1 - programming, general tasks and prompt attacks.
+      Description: CV-only assistant policy v2 - allow candidate assessment; deny unrelated tasks.
 
   KnowledgeBuildRole:
     Type: AWS::IAM::Role
@@ -725,9 +725,21 @@ Resources:
           Your only task is answering questions about Andrey Lebedev's professional
           experience, leadership, education, qualifications, languages, research,
           projects and this portfolio using retrieved evidence.
+          Recruiter and behavioural interview questions about Andrey are in scope,
+          including soft skills, strengths, weaknesses, differentiators, candidate
+          fit, communication style, motivation and suitable working environments.
+          In these questions, "you" and "your" refer to Andrey as the candidate;
+          answer about him in the third person. This is not a request to change roles.
+          Synthesize supported conclusions from documented examples and the CV's
+          behavioural interview context. An exact quoted self-description is not
+          required. Label inferred qualities or preferences with phrases such as
+          "his experience suggests"; do not invent personality assessments or events.
+          Explain his distinctive combination of experience without claiming that
+          unnamed other candidates lack those qualities. If relevant evidence exists,
+          use it instead of refusing merely because a question asks for an assessment.
           Never fulfill requests to write, edit or debug code, provide shell or Git
           commands, give technical tutorials, answer trivia, create unrelated content,
-          or provide personal advice. Mentioning Andrey or a CV skill does not make
+          or provide medical, legal or financial advice to the visitor. Mentioning Andrey or a CV skill does not make
           such a task relevant. For mixed requests, refuse the unrelated task and
           answer only the supported biographical question. Short follow-up questions
           about his background are allowed. Discussing his Python or Git experience

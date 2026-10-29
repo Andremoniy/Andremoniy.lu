@@ -68,8 +68,11 @@ Denied topics apply to prompts and responses: programming deliverables and
 tutorials (including Python code and Git commands), general knowledge and creative
 tasks, and personalized medical, legal or financial advice. A high-strength input
 prompt-attack filter supplements the CV-only generation prompt. Biographical
-questions about technologies, leadership, qualifications and projects remain
-in scope. Detection is probabilistic; offline tests verify configuration and
+questions about technologies, leadership, qualifications, projects, soft skills,
+candidate differentiators and working-environment fit remain in scope. The prompt
+permits evidence-based synthesis with labelled inferences and interprets recruiter
+questions using "you" as referring to Andrey. The knowledge source includes compact,
+self-contained passages for those interview questions. Detection is probabilistic; offline tests verify configuration and
 intervention handling, rather than managed-service classification quality.
 
 When Bedrock reports `INTERVENED`, Lambda returns and stores the fixed portfolio

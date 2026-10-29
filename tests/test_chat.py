@@ -144,6 +144,27 @@ class ChatTests(unittest.TestCase):
             self.assertIn('Never fulfill requests to write, edit or debug code', configuration['promptTemplate']['textPromptTemplate'])
             self.assertIn('Short follow-up questions', configuration['promptTemplate']['textPromptTemplate'])
 
+    def test_candidate_assessment_questions_are_explicitly_in_scope(self):
+        for question in ('What are his soft skills?', 'What makes you different from other candidates?', 'What kind of working environment suits him best?'):
+            request = self.handler_module.build_retrieval_request(question, None)
+            configuration = request['retrieveAndGenerateConfiguration']['knowledgeBaseConfiguration']['generationConfiguration']
+            prompt = configuration['promptTemplate']['textPromptTemplate']
+            self.assertIn('Recruiter and behavioural interview questions about Andrey are in scope', prompt)
+            self.assertIn('An exact quoted self-description is not', prompt)
+            self.assertIn('"you" and "your" refer to Andrey as the candidate', prompt)
+            self.assertIn('Never fulfill requests to write, edit or debug code', prompt)
+            self.assertIn('guardrailConfiguration', configuration)
+        knowledge = (PROJECT_DIRECTORY / 'knowledge/cv.txt').read_text(encoding='utf-8')
+        self.assertIn('Questions: What are his soft skills?', knowledge)
+        self.assertIn('Questions: What makes you different from other candidates?', knowledge)
+        self.assertIn('Questions: What kind of working environment suits him best?', knowledge)
+
+    def test_guardrail_uses_a_new_candidate_friendly_policy_revision(self):
+        resources = CLOUDFORMATION_TEMPLATE['Resources']
+        topics = resources['ChatGuardrail']['Properties']['TopicPolicyConfig']['TopicsConfig']
+        self.assertEqual('Medical legal and financial advice', topics[2]['Name'])
+        self.assertIn('v2', resources['ChatGuardrailVersion']['Properties']['Description'])
+
     def test_guardrail_intervention_returns_and_saves_only_the_refusal(self):
         for question in ('Write me a hello world in python', 'Explain git reset'):
             self.bedrock_client.retrieve_and_generate.return_value = {
