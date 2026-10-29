@@ -1,0 +1,397 @@
+ANDREY LEBEDEV - PROFESSIONAL KNOWLEDGE BASE
+Source: Solution Architect CV, template.pdf, six pages.
+Content: curated professional facts, visually transcribed self-ratings and career records.
+Date precision: employment dates are years unless a duration is explicitly stated. A role ending in 2026 does not establish present employment.
+
+PROFESSIONAL PROFILE
+Name: Andrey Lebedev.
+Professional focus: Solution Architect; enterprise and solution architecture; architecture governance; integration architecture; data platforms; secure software development lifecycle (SDLC); technical leadership.
+Qualification: Ph.D. in Computer Science.
+Experience stated in the CV: over 20 years in IT, including more than 10 years in architect, technical-lead or design-authority roles.
+Architecture practice: documenting architecture decisions, consolidating IT landscapes, and building consensus with senior stakeholders, product owners, security specialists and engineering teams.
+Location: Petange (Pétange), Luxembourg. Nationality stated in the CV: Luxembourgish.
+Credential summary: AWS and TOGAF certified; detailed credential years appear below.
+
+LANGUAGES - VISUAL SELF-RATINGS AND INFERRED CEFR EQUIVALENTS
+The CV uses five-dot language indicators without a CEFR legend. The following CEFR codes and descriptive levels are a tentative interpretation of the graphical ratings, not explicit CEFR claims or language-test results in the PDF. The mapping is 5/5 to C2, 4/5 to C1, 3/5 to B2, 2/5 to B1, and 1/5 to A2.
+English level: native/bilingual proficiency, tentative C2 equivalent (inferred from 5/5 filled dots; not a certified CEFR result).
+Russian level: native/bilingual proficiency, tentative C2 equivalent (inferred from 5/5 filled dots; not a certified CEFR result).
+French level: advanced proficiency, tentative C1 equivalent (inferred from 4/5 filled dots; not a certified CEFR result).
+Spanish level: upper-intermediate proficiency, tentative B2 equivalent (inferred from 3/5 filled dots; not a certified CEFR result).
+Luxembourgish level: intermediate proficiency, tentative B1 equivalent (inferred from 2/5 filled dots; not a certified CEFR result).
+German level: elementary proficiency, tentative A2 equivalent (inferred from 1/5 filled dots; not a certified CEFR result).
+
+SKILLS - VISUAL SELF-RATINGS
+The PDF shows a five-dot scale, without naming proficiency bands. Scores below are exact transcriptions of filled dots. Descriptions are editorial interpretations: 5/5 = very strong proficiency, 4/5 = strong proficiency, 3/5 = working proficiency. These are self-assessments, not external certifications, experience durations or percentage scores.
+
+Architecture skills - Andrey Lebedev
+Solution architecture: 5/5, very strong self-rated proficiency.
+Technical leadership: 5/5, very strong self-rated proficiency.
+Architecture governance: 5/5, very strong self-rated proficiency.
+Integration architecture: 5/5, very strong self-rated proficiency.
+Security by design: 5/5, very strong self-rated proficiency.
+Stakeholder management: 5/5, very strong self-rated proficiency.
+
+Technology skills - Andrey Lebedev
+Java: 5/5, very strong self-rated proficiency.
+Spring: 5/5, very strong self-rated proficiency.
+JUnit: 5/5, very strong self-rated proficiency.
+Cypress / Selenium: 5/5, very strong self-rated proficiency.
+REST / API / OpenAPI: 5/5, very strong self-rated proficiency.
+OAuth 2.0: 5/5, very strong self-rated proficiency.
+Docker: 5/5, very strong self-rated proficiency.
+Continuous integration / continuous delivery (CI/CD): 5/5, very strong self-rated proficiency.
+Amazon Web Services (AWS): 5/5, very strong self-rated proficiency.
+Microsoft Azure: 4/5, strong self-rated proficiency.
+Linux: 4/5, strong self-rated proficiency.
+Terraform: 4/5, strong self-rated proficiency.
+TypeScript: 4/5, strong self-rated proficiency.
+React: 4/5, strong self-rated proficiency.
+Groovy: 4/5, strong self-rated proficiency.
+Python: 3/5, working self-rated proficiency.
+
+Database skills - Andrey Lebedev
+Oracle: 5/5, very strong self-rated proficiency.
+PostgreSQL: 5/5, very strong self-rated proficiency.
+MySQL: 5/5, very strong self-rated proficiency.
+Microsoft SQL Server (MS SQL Server): 5/5, very strong self-rated proficiency.
+H2: 5/5, very strong self-rated proficiency.
+Redis / Memcached: 5/5, very strong self-rated proficiency.
+Cassandra: 4/5, strong self-rated proficiency.
+IBM DB2: 3/5, working self-rated proficiency.
+
+Messaging platform skills - Andrey Lebedev
+RabbitMQ: 5/5, very strong self-rated proficiency.
+Apache Kafka: 4/5, strong self-rated proficiency.
+Amazon Simple Queue Service (SQS): 4/5, strong self-rated proficiency.
+Amazon Simple Notification Service (SNS): 4/5, strong self-rated proficiency.
+
+Tool skills - Andrey Lebedev
+Apache Maven: 5/5, very strong self-rated proficiency.
+SonarQube: 5/5, very strong self-rated proficiency.
+IntelliJ IDEA: 5/5, very strong self-rated proficiency.
+GitHub / GitLab: 5/5, very strong self-rated proficiency.
+Jenkins: 5/5, very strong self-rated proficiency.
+Jira / Confluence: 5/5, very strong self-rated proficiency.
+ArchiMate: 3/5, working self-rated proficiency.
+draw.io: 5/5, very strong self-rated proficiency.
+
+Engineering methods - Andrey Lebedev
+Agile Scrum / Kanban: 5/5, very strong self-rated proficiency.
+Test-driven development (TDD): 5/5, very strong self-rated proficiency.
+Behaviour-driven development (BDD) / acceptance test-driven development (ATDD): 5/5, very strong self-rated proficiency.
+Domain-driven design (DDD): 5/5, very strong self-rated proficiency.
+
+EDUCATION
+2007-2011 | Ph.D. in Computer Science | Moscow Institute of Electronics and Mathematics.
+2002-2007 | Master in Applied Mathematics | Moscow Institute of Electronics and Mathematics.
+
+CAREER PATH - PRIMARY PROFESSIONAL ROLES
+Andrey Lebedev's primary career progresses from PHP/Delphi development at DentaVita (2004-2006), through Java development and systems analysis at MFD InfoCenter/NBCH (2006-2013), department leadership at IntelInfo (2013-2017), senior Java development at 3D Issue (2016-2017), IT architecture at ARHS Spikeseed (2017-2020), domain architecture at Fujitsu for the European Investment Bank (2020-2024), solution architecture at John Deere Bank (2024), chapter engineering leadership at ING Luxembourg (2024-2026), and a three-month solution-architecture assignment at Quantexa (2026).
+The PDF contains overlapping year ranges. Exact transition months and whether overlapping primary roles were concurrent are not specified. The additional consulting, academic and Google roles below are explicitly grouped as part-time in the CV.
+
+CAREER RECORD 01: Andrey Lebedev | 2026-2026 | Solution Architect | Quantexa
+Person: Andrey Lebedev.
+Role: Solution Architect.
+Employer: Quantexa.
+Location: Luxembourg / Spain.
+Start year: 2026. End year: 2026.
+Experience category: Primary professional experience.
+Domains: Decision intelligence; architecture documentation; technical training.
+Scope: Three-month assignment in 2026; exact months unspecified.
+
+Andrey Lebedev | 2026-2026 | Solution Architect | Quantexa - responsibilities, achievements and technology context
+During a three-month assignment, I reviewed, redesigned and developed internal engineering and solution architecture documentation for Quantexa’s decision intelligence platform, including technical training materials and design guidance.
+Relevant responsibilities and achievements:
+- Quantexa (2026-2026), Solution Architect: Reviewed and improved existing architecture documentation, clarifying component interactions, design choices and engineering guidance.
+- Quantexa (2026-2026), Solution Architect: Developed and refined technical designs and documentation covering AWS, Azure, GCP and Kubernetes-based platform components.
+- Quantexa (2026-2026), Solution Architect: Documented secrets management best practices, including secure handling of database credentials between components and credential rotation.
+- Quantexa (2026-2026), Solution Architect: Reviewed and updated technical learning materials to make platform architecture and engineering practices easier to understand.
+- Quantexa (2026-2026), Solution Architect: Gained practical familiarity with Kubernetes and Helm by working with the platform’s local development setup.
+Quantexa (2026-2026), Solution Architect - The technologies and concepts covered include: Solution Architecture, Decision Intelligence, Architecture Documentation, Technical Writing, Engineering Best Practices, Secrets Management, Credential Rotation, Data Integration, Kafka, Spark, Hadoop, Elasticsearch, Kubernetes and Helm (local development), AWS, Azure, GCP, Claude Code, Copilot, Databricks.
+
+CAREER RECORD 02: Andrey Lebedev | 2024-2026 | Chapter Lead Engineer | ING Luxembourg
+Person: Andrey Lebedev.
+Role: Chapter Lead Engineer.
+Employer: ING Luxembourg.
+Location: Luxembourg.
+Start year: 2024. End year: 2026.
+Experience category: Primary professional experience.
+Domains: Banking; people leadership; solution architecture; engineering governance.
+Scope: Managed a team of 10 engineers. Formal IT Custodian and certified Security Champion responsibilities.
+
+Andrey Lebedev | 2024-2026 | Chapter Lead Engineer | ING Luxembourg - responsibilities, achievements and technology context
+As a Chapter Lead Engineer, I managed a team of 10 engineers and defined engineering standards within the chapter. The role combined people management, solution architecture, technology planning, engineering governance and hands-on contribution to critical components.
+Relevant responsibilities and achievements:
+- ING Luxembourg (2024-2026), Chapter Lead Engineer: Initiated and championed engineering improvements within the chapter, including Domain-Driven Design, automated testing, CI/CD discipline and quality gates.
+- ING Luxembourg (2024-2026), Chapter Lead Engineer: Defined technology roadmaps for my engineering domain, evaluating architectural options and guiding the adoption of engineering practices and platforms.
+- ING Luxembourg (2024-2026), Chapter Lead Engineer: Designed solution architectures for chapter projects, including cloud-oriented and cloud-ready solutions aligned with the tribe’s private-cloud direction.
+- ING Luxembourg (2024-2026), Chapter Lead Engineer: Designed the chapter’s CI/CD architecture and delivery lifecycle, documenting workflows, quality gates and implementation steps subsequently put into practice by the team.
+- ING Luxembourg (2024-2026), Chapter Lead Engineer: Provided architectural guidance and design reviews, assessing maintainability, security and delivery trade-offs.
+- ING Luxembourg (2024-2026), Chapter Lead Engineer: Led the adoption and integration of Azure DevOps for traceable delivery workflows; also used Ansible hands-on for infrastructure automation.
+- ING Luxembourg (2024-2026), Chapter Lead Engineer: Established Site Reliability Engineering (SRE) practices within the chapter, strengthening operational readiness and contributing to DORA-related resilience and end-to-end testing activities.
+- ING Luxembourg (2024-2026), Chapter Lead Engineer: Led application cloud onboarding, promoted a private-cloud approach within the tribe and coordinated with infrastructure and security stakeholders.
+- ING Luxembourg (2024-2026), Chapter Lead Engineer: Held the formal IT Custodian role for business-critical applications within the chapter domain, overseeing ICT risk assessments, incident follow-up, risk mitigation and risk acceptance or waiver requests.
+- ING Luxembourg (2024-2026), Chapter Lead Engineer: Served as a certified Security Champion, assessing IT security risks and supporting secure-by-design decisions.
+- ING Luxembourg (2024-2026), Chapter Lead Engineer: Introduced a BDD / ATDD framework with executable acceptance criteria and explored AI-assisted tooling for specification and acceptance testing.
+As an engineering manager, I conducted regular one-to-one meetings, performance evaluations, individual development planning, objective setting, technical interviews, vendor feedback and budget-planning contributions.
+ING Luxembourg (2024-2026), Chapter Lead Engineer - The technologies and concepts used include: Development: Java, JavaScript, Spring Boot, REST, JSON, XML, YAML, Selenium, JUnit; DevOps & Infrastructure Automation: Azure DevOps, Azure Boards, Ansible (hands-on), CI/CD; Architecture & Engineering: Solution Architecture, DDD, BDD, ATDD, TDD, ArchiMate, draw.io; Resilience & Security: SRE, DORA, Security Champion, CyberArk; Ways of Working: Agile, Scrum, Kanban.
+
+CAREER RECORD 03: Andrey Lebedev | 2024-2024 | Solution Architect | John Deere Bank
+Person: Andrey Lebedev.
+Role: Solution Architect.
+Employer: John Deere Bank.
+Location: Luxembourg.
+Start year: 2024. End year: 2024.
+Experience category: Primary professional experience.
+Domains: Banking; European regional application and integration architecture.
+Scope: Architecture practices across six development teams; led or supervised architecture for three greenfield initiatives.
+
+Andrey Lebedev | 2024-2024 | Solution Architect | John Deere Bank - responsibilities, achievements and technology context
+As a regional Solution Architect, I ensured that local IT solutions followed corporate standards while remaining fit for local business needs. The role required analysis of the existing IT landscape, cross-product requirements, vendor solutions and architecture options, in close cooperation with engineering managers, product owners, scrum masters, developers and business stakeholders.
+Relevant responsibilities and achievements:
+- John Deere Bank (2024-2024), Solution Architect: Independently analysed and documented the European regional application and integration landscape, producing its first consolidated architecture view across systems, interfaces and responsibilities.
+- John Deere Bank (2024-2024), Solution Architect: Created structured diagrams and design rationale to inform architecture discussions and technology decisions with business and technical stakeholders.
+- John Deere Bank (2024-2024), Solution Architect: Reviewed third-party and internal solution designs against maintainability, integration, security and operational-quality expectations.
+- John Deere Bank (2024-2024), Solution Architect: Fostered common engineering and architecture practices across six development teams.
+- John Deere Bank (2024-2024), Solution Architect: Led or supervised architecture work for three greenfield initiatives, including proof-of-concept activities and solution-design workshops.
+- John Deere Bank (2024-2024), Solution Architect: Researched and introduced automated testing for Terraform-based infrastructure changes, improving validation of Infrastructure as Code (IaC).
+John Deere Bank (2024-2024), Solution Architect - The technologies and tools used include: Development & Data: Java 21, Python, TypeScript, React, Oracle, PostgreSQL, Databricks; Cloud & Platforms: AWS, Docker; Infrastructure as Code (IaC): Terraform (configuration testing); DevOps & Architecture Tools: Groovy, Jenkins, draw.io, Jira, Confluence, GitHub.
+
+CAREER RECORD 04: Andrey Lebedev | 2020-2024 | Domain Architect | Fujitsu
+Person: Andrey Lebedev.
+Role: Domain Architect.
+Employer: Fujitsu.
+Client: European Investment Bank (EIB), Lending Middle Office Unit.
+Location: Luxembourg.
+Start year: 2020. End year: 2024.
+Experience category: Primary professional experience.
+Domains: Banking; lending middle office; solution architecture; technical leadership.
+Scope: Client: European Investment Bank (EIB). External consultant in the Lending Middle Office Unit. Also Solution Architect, Technical Lead and Scrum Master; supervised 10 developers.
+
+Andrey Lebedev | 2020-2024 | Domain Architect | Fujitsu - responsibilities, achievements and technology context
+I worked as an external consultant at the European Investment Bank. In the Lending Middle Office Unit, I served as Solution Architect, Technical Lead and Scrum Master. I independently proposed and championed changes to architecture, engineering quality and delivery practices for business-critical applications.
+Relevant responsibilities and achievements:
+- Fujitsu (2020-2024), Domain Architect: Led and supervised a team of 10 developers, introducing stronger architecture discipline, engineering practices and delivery governance.
+- Fujitsu (2020-2024), Domain Architect: Introduced Domain-Driven Design (DDD), designing a meta-model-based architecture that reduced future development complexity and cost.
+- Fujitsu (2020-2024), Domain Architect: Introduced an API-first approach, simplifying API development and reducing regression risks across integrations.
+- Fujitsu (2020-2024), Domain Architect: Established structured architecture documentation using architectural views and design rationale to make key decisions easier to share and maintain.
+- Fujitsu (2020-2024), Domain Architect: Migrated a JBoss Java application to Spring Boot, improving maintainability and technical alignment with modern Java practices.
+- Fujitsu (2020-2024), Domain Architect: Applied clean-code and automated-testing principles to Groovy-based Jenkins pipelines, refactoring delivery scripts and reducing CI/CD-related incidents.
+- Fujitsu (2020-2024), Domain Architect: Introduced Test-Driven Development, increasing test code coverage from 25% to 95% on an existing application.
+- Fujitsu (2020-2024), Domain Architect: Initiated BDD / ATDD practices and led a greenfield replacement of a legacy low-code solution, using executable acceptance criteria, mandatory TDD and visual regression testing.
+- Fujitsu (2020-2024), Domain Architect: Contributed to Agile Scrum and Kanban culture and encouraged consistent use of good SDLC practices.
+Fujitsu (2020-2024), Domain Architect - The technologies and tools used include: Java 8/11/17, Java EE, JBoss, Oracle, Hibernate, Spring Boot, Spring MVC, Spring Security, Spring Data, RESTEasy, OpenAPI, Swagger, XML, JSON, Maven, GitHub, Jenkins, SonarQube, Groovy, Selenium, Cypress, Mockito, MockServer, TypeScript, React Native, JavaScript, Jest, HTML, CSS, Jira, Agile Scrum, TDD, BDD, DDD, Azure DevOps.
+Fujitsu (2020-2024), Domain Architect - A related open-source project: https://github.com/Andremoniy/cypress-visual-regression-resemble-js
+
+CAREER RECORD 05: Andrey Lebedev | 2017-2020 | IT Architect | ARHS Spikeseed
+Person: Andrey Lebedev.
+Role: IT Architect.
+Employer: ARHS Spikeseed.
+Client assignments: European Commission (initial AWS cloud migration); Ingenico (predominant payment-platform assignment).
+Location: Luxembourg.
+Start year: 2017. End year: 2020.
+Experience category: Primary professional experience.
+Domains: Cloud migration; distributed payment processing; microservices integration.
+Scope: Assignments: initial European Commission AWS cloud migration, followed predominantly by Ingenico payment-platform work.
+
+Andrey Lebedev | 2017-2020 | IT Architect | ARHS Spikeseed - responsibilities, achievements and technology context
+After an initial European Commission AWS cloud-migration assignment, I worked predominantly on Ingenico’s microservices-based payment platform. It integrated multiple payment service providers and acquirers behind a unified API, with demanding reliability and integration requirements.
+Relevant responsibilities and achievements:
+- ARHS Spikeseed (2017-2020), IT Architect: Designed and documented component architecture and implemented corresponding solutions in a distributed payment platform.
+- ARHS Spikeseed (2017-2020), IT Architect: Led several acquirer implementations, including requirements gathering, communication with external acquirer representatives, planning, accreditation activity and delivery coordination.
+- ARHS Spikeseed (2017-2020), IT Architect: Designed and implemented the Funnel Service, a configurable load-balancing and queuing component distributing virtual-terminal requests across acquirer-specific terminals, supporting idempotency and reliable payment processing.
+- ARHS Spikeseed (2017-2020), IT Architect: Worked with distributed-system, messaging and infrastructure concerns including Kafka, Docker, Cassandra, PostgreSQL, Consul and AWS.
+- ARHS Spikeseed (2017-2020), IT Architect: Used Puppet and Hiera for Infrastructure as Code (IaC) and configuration management on the Ingenico platform.
+- ARHS Spikeseed (2017-2020), IT Architect: Used Docker Compose for multi-container development and testing, including a log-analysis tool to diagnose integration-test failures across containers.
+- ARHS Spikeseed (2017-2020), IT Architect: Contributed to Agile Scrum practices and promoted sound engineering discipline within the team.
+ARHS Spikeseed (2017-2020), IT Architect - The technologies and tools used include: Infrastructure as Code (IaC) & Configuration Management: Puppet, Hiera; Containerisation & Development Environments: Docker, Docker Compose; Cloud & Platform: AWS, Linux, Consul; Development & Integration: Java 8/9/10/11/14, CDI, Java EE, JSON, XML, Cassandra, PostgreSQL, Kafka, Microservices, Bash, Python, Netty, ISO 8583, Swagger, Jetty; DevOps & Quality: Bamboo, Bitbucket, Git, GitLab, SonarQube, Mockito, JUnit; Delivery: Agile Scrum, Jira, Confluence.
+ARHS Spikeseed (2017-2020), IT Architect - A related open-source project: https://github.com/nhenneaux/resilient-httpclient
+
+CAREER RECORD 06: Andrey Lebedev | 2016-2017 | Senior Java Developer | 3D Issue
+Person: Andrey Lebedev.
+Role: Senior Java Developer.
+Employer: 3D Issue.
+Location: Letterkenny, Ireland.
+Start year: 2016. End year: 2017.
+Experience category: Primary professional experience.
+Domains: Java backend development; application migration; authentication; database migration.
+Scope: Hands-on development and modernization of company products.
+
+Andrey Lebedev | 2016-2017 | Senior Java Developer | 3D Issue - responsibilities, achievements and technology context
+Java backend development: Java 8, Spring Boot, Spring MVC, Spring Security, Thymeleaf, Hibernate 4.x, PostgreSQL, MySQL, Cassandra, Redis, AWS EC2, AWS RDS, Python, JUnit, HtmlUnit, PhantomJS, Selenium, Linux, Bash, Python, PHP, HTML, CSS, AngularJS, JavaScript, Jenkins, Jira, Maven, Bitbucket.
+- 3D Issue (2016-2017), Senior Java Developer: I have migrated several projects written in PHP/Python to the Java platform (Java 8 + Spring). The migration process included the creation of a semi-automatic converter for stored functions and procedures from MySQL to PostgreSQL (comprising several hundred procedures in total).
+- 3D Issue (2016-2017), Senior Java Developer: I introduced the use of automatic management and application of database schema changes using the Liquibase library and also developed an extension of this library for the Cassandra database.
+- 3D Issue (2016-2017), Senior Java Developer: I implemented several new projects from scratch, related to automatic text processing used internally within the Company, and performed the migration of one of the front-end projects from a Backbone+HAML stack to AngularJS. This involved fixing various issues and enhancing its performance.
+- 3D Issue (2016-2017), Senior Java Developer: I improved product security, redesigned authentication workflows and contributed as a core developer to a centralised security and user-management system used across the company’s products.
+
+CAREER RECORD 07: Andrey Lebedev | 2013-2017 | Head of Software Development Department | IntelInfo
+Person: Andrey Lebedev.
+Role: Head of Software Development Department.
+Employer: IntelInfo.
+Location: Moscow, Russia.
+Start year: 2013. End year: 2017.
+Experience category: Primary professional experience.
+Domains: Risk and security analysis; department creation; enterprise architecture; product delivery.
+Scope: Established the in-house department. Approximately six months of remote department management after relocating abroad.
+
+Andrey Lebedev | 2013-2017 | Head of Software Development Department | IntelInfo - responsibilities, achievements and technology context
+I was hired by a small company, IntelInfo, specialising in risk and security analysis, to establish its in-house Software Development Department. The primary goal was to automate existing business processes and to expand their market presence. This objective was successfully achieved. During three years, we developed several flagship software products that continue to be used and sold. My responsibilities encompassed project management, system analysis, software architecture development, programming core and critical parts of software, conducting business meetings, and team recruitment and coaching. I managed the department remotely for approximately six months after relocating abroad.
+My main achievements:
+- IntelInfo (2013-2017), Head of Software Development Department: I established a software development department and streamlined its operations;
+- IntelInfo (2013-2017), Head of Software Development Department: I coached and mentored junior and mid-level developers. One of them, following my recommendation, was appointed as the head of the department to succeed me after my departure from the company;
+- IntelInfo (2013-2017), Head of Software Development Department: I designed an enterprise solution for the company’s system landscape;
+- IntelInfo (2013-2017), Head of Software Development Department: I conceptualised and, as a technical lead, implemented two flagship applications for the company, which continue to be maintained and utilised.
+IntelInfo (2013-2017), Head of Software Development Department - The technologies used include: Java 1.7, Tapestry (MVC + IoC), REST API (JBoss RESTEasy), XML, SOAP, JCE (CryptoPro), Apache HttpClient, HtmlUnit, Selenium, JavaScript (d3js, jQuery), ANTLR, Image Recognition, PDF/DOC Parsing, Apache POI, JUnit, Selenium, GitHub, Jenkins, Maven, GitLab, Bitbucket, Jira.
+
+CAREER RECORD 08: Andrey Lebedev | 2006-2013 | Lead Software Developer / Lead System Analyst | MFD InfoCenter / NBCH
+Person: Andrey Lebedev.
+Role: Lead Software Developer / Lead System Analyst.
+Employer: MFD InfoCenter / NBCH.
+Location: Moscow, Russia.
+Start year: 2006. End year: 2013.
+Experience category: Primary professional experience.
+Domains: Business systems; credit reporting; fraud analysis; system analysis; Java development.
+Scope: Joined as a Junior Java Developer and progressed to lead developer / lead system analyst; led teams of 3-4 people in later years.
+
+Andrey Lebedev | 2006-2013 | Lead Software Developer / Lead System Analyst | MFD InfoCenter / NBCH - responsibilities, achievements and technology context
+Starting as a Junior Java Developer, I was promoted to the position of Lead Software Developer/Lead System Analyst. During the latter years of my tenure at this company, I served as a team leader and a core developer on significant business projects, leading teams of 3-4 people. My other responsibilities included:
+- MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: Conducting full system analysis in several projects (including the composition of functional specifications) and project management;
+- MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: Coaching junior developers.
+The projects on which I worked:
+- MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: CreditRegistry
+- MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: NbchParser
+- MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: AntiFraud System
+- MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: StrategyExpress BPMS
+- MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: AddressParser
+- MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: Russian Morphology Analyser
+MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst - The technologies used include: Java 1.5, 1.6, 1.7. Struts, Wicket, Tapestry, Spring, Grails, JSP, HTML, CSS, Oracle DB, IBM DB2, MSSQL Server, Hibernate, JDBC, CryptoPro, JCP, SFTP, XML, RhinoJS, Eclipse RCP, DSL, ANTLR, JUnit, Selenium, CI/CD.
+
+CAREER RECORD 09: Andrey Lebedev | 2004-2006 | PHP / Delphi Developer | DentaVita
+Person: Andrey Lebedev.
+Role: PHP / Delphi Developer.
+Employer: DentaVita.
+Location: Moscow, Russia.
+Start year: 2004. End year: 2006.
+Experience category: Primary professional experience.
+Domains: Internal business software development and maintenance.
+Scope: Primary professional role.
+
+Andrey Lebedev | 2004-2006 | PHP / Delphi Developer | DentaVita - responsibilities, achievements and technology context
+Maintaining and developing internal software.
+
+ADDITIONAL CAREER PATH - PART-TIME CONSULTING, RESEARCH, TEACHING AND DEVELOPMENT
+
+CAREER RECORD 10: Andrey Lebedev | 2013-2014 | Consultant | Apportable
+Person: Andrey Lebedev.
+Role: Consultant.
+Employer: Apportable.
+Location: Los Angeles, USA; remote assignment.
+Start year: 2013. End year: 2014.
+Experience category: Part-time experience.
+Domains: Programming-language conversion; Objective-C to Java; open-source consulting.
+Scope: Part-time remote consultancy related to the objc2j converter.
+
+Andrey Lebedev | 2013-2014 | Consultant | Apportable - responsibilities, achievements and technology context
+As the creator of the currently frozen open-source project, the Objective C to Java converter (available at https://code.google.com/archive/p/objc2j/), I was hired as a remote consultant by Apportable. This company was later acquired by Google.
+
+CAREER RECORD 11: Andrey Lebedev | 2013-2016 | Research Fellow | Higher School of Economics
+Person: Andrey Lebedev.
+Role: Research Fellow.
+Employer: Higher School of Economics.
+Location: Moscow, Russia.
+Start year: 2013. End year: 2016.
+Experience category: Part-time experience.
+Domains: Choice theory; formal grammar; educational software; mathematics visualization.
+Scope: Part-time research and software supervision.
+
+Andrey Lebedev | 2013-2016 | Research Fellow | Higher School of Economics - responsibilities, achievements and technology context
+Conducting research in the field of Choice Theory and Formal Grammar. Supervising the development of an educational software system for visualising mathematical concepts in blended mathematical learning.
+
+CAREER RECORD 12: Andrey Lebedev | 2012-2013 | Assistant Professor | Higher School of Economics
+Person: Andrey Lebedev.
+Role: Assistant Professor.
+Employer: Higher School of Economics.
+Location: Moscow, Russia.
+Start year: 2012. End year: 2013.
+Experience category: Part-time experience.
+Domains: University teaching; object-oriented programming; Java.
+Scope: Part-time teaching and course design.
+
+Andrey Lebedev | 2012-2013 | Assistant Professor | Higher School of Economics - responsibilities, achievements and technology context
+I delivered lectures on object-oriented programming (Java). My responsibilities included the creation of the entire course content, which comprised providing materials such as presentations, guides, tests, practical problems, and examination questions, as well as conducting practical studies, tests, and examinations.
+
+CAREER RECORD 13: Andrey Lebedev | 2011-2012 | Assistant Professor | Moscow Institute of Electronics and Mathematics
+Person: Andrey Lebedev.
+Role: Assistant Professor.
+Employer: Moscow Institute of Electronics and Mathematics.
+Location: Moscow, Russia.
+Start year: 2011. End year: 2012.
+Experience category: Part-time experience.
+Domains: University teaching; object-oriented programming; Java.
+Scope: Part-time teaching and course design.
+
+Andrey Lebedev | 2011-2012 | Assistant Professor | Moscow Institute of Electronics and Mathematics - responsibilities, achievements and technology context
+I delivered lectures on object-oriented programming (Java). My responsibilities encompassed the creation of the complete course content, which included supplying materials such as presentations, guides, tests, practical problems, and examination questions, as well as conducting practical studies, tests, and examinations.
+
+CAREER RECORD 14: Andrey Lebedev | 2007-2011 | Teaching Assistant | Moscow Institute of Electronics and Mathematics
+Person: Andrey Lebedev.
+Role: Teaching Assistant.
+Employer: Moscow Institute of Electronics and Mathematics.
+Location: Moscow, Russia.
+Start year: 2007. End year: 2011.
+Experience category: Part-time experience.
+Domains: University teaching; procedural programming; C.
+Scope: Part-time teaching and course design.
+
+Andrey Lebedev | 2007-2011 | Teaching Assistant | Moscow Institute of Electronics and Mathematics - responsibilities, achievements and technology context
+I delivered lectures on procedural programming (C language). My responsibilities involved creating the complete course content, which included supplying materials such as presentations, guides, tests, practical problems, and examination questions, as well as conducting practical studies, tests, and examinations.
+
+CAREER RECORD 15: Andrey Lebedev | 2011-2012 | Backend Java Developer | Google
+Person: Andrey Lebedev.
+Role: Backend Java Developer.
+Employer: Google.
+Location: Moscow, Russia.
+Start year: 2011. End year: 2012.
+Experience category: Part-time experience.
+Domains: Road-quality data processing; mathematical modeling; Google App Engine.
+Scope: Part-time Roads of Russia project, explicitly listed under part-time experience in the CV.
+
+Andrey Lebedev | 2011-2012 | Backend Java Developer | Google - responsibilities, achievements and technology context
+I was involved in server-side development of the ’Roads of Russia’ project and the development of its mathematical model. The project aimed to collect data on road quality in Russia, sourced from mobile devices. This data was generated by the gyroscopes and accelerometers of mobile devices running on the Android OS. Users were expected to run the project’s mobile application on their devices while driving. My role was to collect and process this data on the server side and to provide it via a web service for display on a Google Maps layer within a web application. The backend was developed in Java and deployed on the Google App Engine platform.
+
+CERTIFICATIONS AND TRAINING - ANDREY LEBEDEV
+Years below are those listed in the source CV. Expiry dates and present validity are not specified. Certifications, training badges and course completions are distinguished below.
+2026 | Certification | AWS Certified Solutions Architect - Professional | AWS.
+2026 | Training badge | AWS SimuLearn - AI Architect | AWS.
+2026 | Certification | TOGAF Enterprise Architecture Foundation | The Open Group.
+2026 | Credential | Quantexa Certified Platform Architect | Quantexa.
+2025 | Certification | Blue Security Champion | Secure Flag.
+2024 | Credential | Registered Scrum Team Member | Scrum Inc.
+2022 | Certification | Professional Scrum Master II | Scrum.org.
+2020 | Certification | AWS Certified Advanced Networking - Specialty | AWS.
+2019 | Certification | AWS Certified Security - Specialty | AWS.
+2019 | Certification | AWS Certified Solutions Architect - Professional | AWS.
+2019 | Certification | AWS Certified DevOps Engineer - Professional | AWS.
+2019 | Certification | AWS Certified Developer - Associate | AWS. The duplicate listing in the PDF represents one listed credential here.
+2019 | Certification | AWS Certified SysOps Administrator - Associate | AWS.
+2019 | Certification | AWS Certified Cloud Practitioner | AWS.
+2018 | Certification | Professional Scrum Master I | Scrum.org.
+2014 | Course completion | Automata | Coursera, Statement of Accomplishment.
+2013 | Course completion | Machine Learning | Coursera, Statement of Accomplishment.
+2012 | Course completion | Natural Language Processing | Coursera, Statement of Accomplishment.
+
+PROFESSIONAL EVIDENCE BY THEME
+Leadership: ING Luxembourg chapter of 10 engineers; Fujitsu/EIB supervision of 10 developers; IntelInfo department creation, recruitment and coaching; MFD InfoCenter/NBCH leadership of teams of 3-4. John Deere Bank architecture practices involved six development teams, not a claim of line management of all six teams.
+AWS: European Commission cloud-migration assignment through ARHS Spikeseed; AWS in the Ingenico payment-platform context; EC2 and RDS at 3D Issue; AWS among John Deere Bank technologies; AWS architecture documentation at Quantexa; multiple AWS credentials listed above. Quantexa Kubernetes/Helm experience is specifically local-development familiarity, not a claim of production-cluster operations.
+Architecture governance: regional landscape consolidation and design review at John Deere Bank; technology roadmaps and chapter engineering governance at ING Luxembourg; structured architectural views and design rationale at Fujitsu/EIB; platform design documentation at Quantexa.
+Quality and delivery: test coverage increased from 25% to 95% at Fujitsu/EIB; TDD, BDD/ATDD and visual regression testing at Fujitsu/EIB; CI/CD architecture and quality gates at ING Luxembourg; Terraform configuration testing at John Deere Bank.
+Security: Security Champion and IT Custodian responsibilities at ING Luxembourg; authentication and user-management work at 3D Issue; secrets-management and credential-rotation documentation at Quantexa.
+Research and teaching: Ph.D. in Computer Science; Choice Theory and Formal Grammar research at the Higher School of Economics; Java object-oriented programming teaching at two universities; procedural C teaching; mathematical-model work on Google's Roads of Russia project.
+
+INTERESTS AND WRITING
+Reading: philosophy of mind, popular science, software engineering.
+Writing: Medium articles about software design, engineering and Agile principles.
+Games: chess and PUBG.
+Creative activities: 3D printing, acrylic painting and oil painting.
+Professional references: available on request and on the LinkedIn profile, according to the CV.
