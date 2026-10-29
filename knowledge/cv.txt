@@ -12,6 +12,12 @@ Architecture practice: documenting architecture decisions, consolidating IT land
 Location: Petange (Pétange), Luxembourg. Nationality stated in the CV: Luxembourgish.
 Credential summary: AWS and TOGAF certified; detailed credential years appear below.
 
+PEOPLE MANAGEMENT AND ENGINEERING MANAGEMENT EXPERIENCE
+Does Andrey Lebedev have experience in people management? Yes. He managed engineers at both ING Luxembourg and IntelInfo (also written Intelinfo).
+At ING Luxembourg (2024-2026), Andrey Lebedev was Chapter Lead Engineer and people manager for a team of 10 engineers. His people-management responsibilities included regular one-to-one meetings, performance evaluations, individual development plans, objective setting, technical interviews, vendor feedback and contributions to budget planning.
+At IntelInfo (2013-2017), Andrey Lebedev was Head of the Software Development Department. He established and managed the department, recruited engineers, and coached and mentored junior and mid-level developers. He recommended one of the developers as his successor to lead the department. He also managed the department remotely for approximately six months after relocating abroad. The CV does not specify the IntelInfo team size.
+These roles demonstrate people management, engineering management, staff development, recruitment, mentoring and team leadership.
+
 LANGUAGES - VISUAL SELF-RATINGS AND INFERRED CEFR EQUIVALENTS
 The CV uses five-dot language indicators without a CEFR legend. The following CEFR codes and descriptive levels are a tentative interpretation of the graphical ratings, not explicit CEFR claims or language-test results in the PDF. The mapping is 5/5 to C2, 4/5 to C1, 3/5 to B2, 2/5 to B1, and 1/5 to A2.
 English level: native/bilingual proficiency, tentative C2 equivalent (inferred from 5/5 filled dots; not a certified CEFR result).
@@ -134,7 +140,7 @@ Relevant responsibilities and achievements:
 - ING Luxembourg (2024-2026), Chapter Lead Engineer: Held the formal IT Custodian role for business-critical applications within the chapter domain, overseeing ICT risk assessments, incident follow-up, risk mitigation and risk acceptance or waiver requests.
 - ING Luxembourg (2024-2026), Chapter Lead Engineer: Served as a certified Security Champion, assessing IT security risks and supporting secure-by-design decisions.
 - ING Luxembourg (2024-2026), Chapter Lead Engineer: Introduced a BDD / ATDD framework with executable acceptance criteria and explored AI-assisted tooling for specification and acceptance testing.
-As an engineering manager, I conducted regular one-to-one meetings, performance evaluations, individual development planning, objective setting, technical interviews, vendor feedback and budget-planning contributions.
+ING Luxembourg (2024-2026), Chapter Lead Engineer and people manager: Andrey Lebedev conducted regular one-to-one meetings, performance evaluations, individual development planning, objective setting, technical interviews, vendor feedback and budget-planning contributions for his engineering team.
 ING Luxembourg (2024-2026), Chapter Lead Engineer - The technologies and concepts used include: Development: Java, JavaScript, Spring Boot, REST, JSON, XML, YAML, Selenium, JUnit; DevOps & Infrastructure Automation: Azure DevOps, Azure Boards, Ansible (hands-on), CI/CD; Architecture & Engineering: Solution Architecture, DDD, BDD, ATDD, TDD, ArchiMate, draw.io; Resilience & Security: SRE, DORA, Security Champion, CyberArk; Ways of Working: Agile, Scrum, Kanban.
 
 CAREER RECORD 03: Andrey Lebedev | 2024-2024 | Solution Architect | John Deere Bank

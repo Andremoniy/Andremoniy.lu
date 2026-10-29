@@ -19,6 +19,7 @@ INGESTION_POLL_SECONDS = 10
 TERMINAL_INGESTION_STATUSES = {"COMPLETE", "FAILED", "STOPPED"}
 ENVIRONMENT_VARIABLE_NAMES = (
     "CV_BUCKET", "CV_KNOWLEDGE_BASE", "CV_DATA_SOURCE", "CHAT_API_URL",
+    "CHAT_AUTH_DOMAIN", "CHAT_AUTH_CLIENT_ID",
 )
 
 
@@ -28,6 +29,8 @@ class KnowledgeConfiguration:
     knowledge_base_id: str
     data_source_id: str
     chat_endpoint: str
+    authentication_domain: str
+    authentication_client_id: str
 
     def ingestion_parameters(self):
         return {
@@ -54,10 +57,16 @@ def read_knowledge_configuration():
     return None
 
 
-def write_public_configuration(chat_endpoint):
+def write_public_configuration(chat_endpoint, authentication_domain=None, authentication_client_id=None):
+    public_configuration = {"endpoint": chat_endpoint}
+    if authentication_domain and authentication_client_id:
+        public_configuration["auth"] = {
+            "domain": authentication_domain,
+            "clientId": authentication_client_id,
+        }
     CONFIGURATION_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIGURATION_PATH.write_text(
-        json.dumps({"endpoint": chat_endpoint}), encoding="utf-8",
+        json.dumps(public_configuration), encoding="utf-8",
     )
 
 
@@ -143,7 +152,11 @@ def publish():
     knowledge_client = boto3.client("bedrock-agent")
     upload_changed_knowledge(storage_client, configuration.bucket_name)
     synchronize_knowledge(knowledge_client, configuration)
-    write_public_configuration(configuration.chat_endpoint)
+    write_public_configuration(
+        configuration.chat_endpoint,
+        configuration.authentication_domain,
+        configuration.authentication_client_id,
+    )
 
 
 if __name__ == "__main__":

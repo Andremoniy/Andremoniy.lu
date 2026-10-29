@@ -5,3 +5,4 @@
 @media(max-width:600px){.cv-chat{right:16px;bottom:84px}.cv-chat-launcher{right:16px;bottom:16px}}
 
 .cv-chat .bot-avatar{color:#192d25}.cv-chat form{flex-shrink:0}
+.cv-chat-signin{display:block;margin-top:12px;padding:10px 14px;border:0;border-radius:8px;background:#192d25;color:white;font:inherit}.cv-chat header button[aria-label="Sign out"]{font-size:11px}.cv-chat button[hidden]{display:none}

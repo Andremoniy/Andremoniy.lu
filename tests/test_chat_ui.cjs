@@ -11,9 +11,19 @@ async function run() {
   const {window} = dom;
   const calls = [];
   let fail = false;
+  let signedIn = false;
+  let signInQuestion;
+  window.portfolioAuth = {
+    ready: Promise.resolve({endpoint: 'https://api.example/chat'}),
+    getAccessToken: () => signedIn ? 'signed-access-token' : null,
+    signIn: async question => { signInQuestion = question; },
+    signOut: async () => { signedIn = false; },
+    clearAuthentication: () => { signedIn = false; },
+    consumePendingQuestion: () => '',
+  };
   window.fetch = async (url, options) => {
     if (!options?.body) return {ok: true, json: async () => ({endpoint: 'https://api.example/chat'})};
-    calls.push(JSON.parse(options.body));
+    calls.push({...JSON.parse(options.body), authorization: options.headers.Authorization});
     return {ok: !fail, status: fail ? 429 : 200, json: async () => fail ? {} : {
       answer: '<img src=x onerror=alert(1)> AWS experience', sessionId: 'session-123',
       sources: ['CV: <script>bad()</script>']}};
@@ -30,11 +40,24 @@ async function run() {
   assert.equal(doc.activeElement, doc.querySelector('input'));
   doc.querySelector('[data-chat]').click();
   await tick();
+  assert.equal(calls.length, 0);
+  assert.match(panel.textContent, /Sign in to continue/);
+  panel.querySelector('.cv-chat-signin').click();
+  await tick();
+  assert.match(signInQuestion, /AWS/);
+  signedIn = true;
+  panel.querySelector('[aria-label="Start a new conversation"]').click();
+  doc.querySelector('[data-chat]').click();
+  await tick();
   assert.match(calls[0].message, /AWS/);
+  assert.equal(calls[0].authorization, 'Bearer signed-access-token');
   assert.equal(calls[0].sessionId, undefined);
   assert.equal(panel.querySelector('img'), null);
   assert.equal(panel.querySelector('script'), null);
-  assert.match(panel.querySelector('details').textContent, /CV:/);
+  assert.equal(panel.querySelector('details'), null);
+  assert.equal(panel.querySelector('[role=log]').textContent.includes('CV passages used'), false);
+  assert.equal(panel.querySelector('[role=log]').textContent.includes('CV: <script>'), false);
+  assert.match(panel.querySelector('[role=log]').textContent, /AWS experience/);
   const input = panel.querySelector('input');
   input.value = 'Tell me more';
   panel.querySelector('form').dispatchEvent(new window.Event('submit', {cancelable: true}));
@@ -54,7 +77,47 @@ async function run() {
   assert.match(panel.querySelector('[role=log]').textContent, /busy/);
   assert.equal(input.value, 'Retry question');
   assert.equal(panel.querySelector('button[type=submit]').disabled, false);
+  panel.querySelector('[aria-label="Sign out"]').click();
+  await tick();
+  assert.equal(signedIn, false);
   dom.window.close();
-  console.log('Chat DOM checks passed: open/collapse, sample send, follow-up, reset, XSS-safe evidence, throttle/retry.');
+
+  const resumedDom = new JSDOM('', {url: 'https://portfolio.example/career.html', runScripts: 'outside-only'});
+  let restoredQuestion = 'Does he manage people?';
+  let resumedToken = 'returned-access-token';
+  const resumedRequests = [];
+  let responseStatus = 200;
+  resumedDom.window.portfolioAuth = {
+    ready: Promise.resolve({endpoint: 'https://api.example/chat'}),
+    getAccessToken: () => resumedToken,
+    clearAuthentication: () => { resumedToken = null; },
+    signIn: async () => {}, signOut: async () => {},
+    consumePendingQuestion: () => { const question = restoredQuestion; restoredQuestion = ''; return question; },
+  };
+  resumedDom.window.fetch = async (url, options) => {
+    resumedRequests.push(JSON.parse(options.body));
+    return {ok: responseStatus === 200, status: responseStatus, json: async () => responseStatus === 200 ? {
+      answer: 'Yes, he managed engineers.', sessionId: 'resumed-session',
+    } : responseStatus === 429 ? {retryAfterSeconds: 61} : {}};
+  };
+  resumedDom.window.eval(source);
+  await tick();
+  assert.equal(resumedRequests.length, 1);
+  assert.equal(resumedRequests[0].message, 'Does he manage people?');
+  const resumedPanel = resumedDom.window.document.querySelector('.cv-chat');
+  assert.equal(resumedPanel.hidden, false);
+  responseStatus = 429;
+  resumedPanel.querySelector('input').value = 'More details';
+  resumedPanel.querySelector('form').dispatchEvent(new resumedDom.window.Event('submit', {cancelable: true}));
+  await tick();
+  assert.match(resumedPanel.textContent, /about 2 minutes/);
+  responseStatus = 401;
+  resumedPanel.querySelector('input').value = 'Try again';
+  resumedPanel.querySelector('form').dispatchEvent(new resumedDom.window.Event('submit', {cancelable: true}));
+  await tick();
+  assert.equal(resumedToken, null);
+  assert.ok(resumedPanel.querySelector('.cv-chat-signin'));
+  resumedDom.window.close();
+  console.log('Chat DOM checks passed: anonymous sign-in gate, saved question, bearer token, follow-up, reset, safe text, hidden sources, throttle/retry, sign-out.');
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });

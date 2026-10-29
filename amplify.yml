@@ -4,7 +4,7 @@ frontend:
     build:
       commands:
         - mkdir -p dist
-        - cp index.html career.html apps.html 3d-printing.html art.html behind-the-site.html dist/
+        - cp index.html career.html apps.html 3d-printing.html art.html behind-the-site.html auth-callback.html dist/
         - cp -r assets dist/assets
         - python3 scripts/fetch_apple_icons.py dist
         - python3 -m pip install --user 'boto3>=1.40,<2'
