@@ -225,11 +225,30 @@ $AwsRegion = 'eu-west-1'
 $StackName = 'andremoniy-portfolio'
 
 aws sts get-caller-identity --profile $AwsProfile
+
+$TemplateBucket = aws cloudformation describe-stacks `
+  --stack-name $StackName `
+  --query "Stacks[0].Outputs[?OutputKey=='CvSourceBucket'].OutputValue | [0]" `
+  --output text `
+  --region $AwsRegion `
+  --profile $AwsProfile
+
+aws s3 cp aws/amplify.yaml "s3://$TemplateBucket/cloudformation/amplify.yaml" `
+  --region $AwsRegion `
+  --profile $AwsProfile
+
 aws cloudformation validate-template `
-  --template-body file://aws/amplify.yaml `
+  --template-url "https://$TemplateBucket.s3.$AwsRegion.amazonaws.com/cloudformation/amplify.yaml" `
   --region $AwsRegion `
   --profile $AwsProfile
 ```
+
+The template exceeds the 51,200-byte direct-upload limit. For an existing stack,
+the commands reuse its private CV source bucket under `cloudformation/`, outside
+the knowledge source's `cv/` prefix. The deployment identity needs S3 upload and
+read permissions for that prefix. For a new stack, `$TemplateBucket` must instead
+name an existing private deployment bucket in the target Region before upload
+and validation; the new stack's CV bucket does not exist yet.
 
 ### 2. Initial stack creation without custom-domain association
 
@@ -240,6 +259,8 @@ This stage applies to a new stack whose domain is not yet delegated to its Route
 aws cloudformation deploy `
   --stack-name $StackName `
   --template-file aws/amplify.yaml `
+  --s3-bucket $TemplateBucket `
+  --s3-prefix cloudformation `
   --capabilities CAPABILITY_IAM `
   --parameter-overrides EnableCustomDomain=false `
   --region $AwsRegion `
@@ -268,6 +289,8 @@ also depend on their records being present in the authoritative zone.
 aws cloudformation deploy `
   --stack-name $StackName `
   --template-file aws/amplify.yaml `
+  --s3-bucket $TemplateBucket `
+  --s3-prefix cloudformation `
   --capabilities CAPABILITY_IAM `
   --parameter-overrides EnableCustomDomain=true `
   --region $AwsRegion `
@@ -287,6 +310,8 @@ values. Both overrides keep the invoked profile and IAM model permissions aligne
 aws cloudformation deploy `
   --stack-name $StackName `
   --template-file aws/amplify.yaml `
+  --s3-bucket $TemplateBucket `
+  --s3-prefix cloudformation `
   --capabilities CAPABILITY_IAM `
   --parameter-overrides `
     ChatModelId=amazon.nova-lite-v1:0 `

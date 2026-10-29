@@ -24,6 +24,18 @@ tab-scoped session storage. The authenticated profile name personalizes replies
 when available; missing names receive generic wording. The tailored-CV recruiter
 area is a demonstration.
 
+An encrypted DynamoDB history table retains questions and answers as separate,
+timestamped exchanges, grouped by conversation and linked to the Cognito user ID.
+It stores no access tokens or email addresses. A summary records the start, last
+activity and effective end time. Its inactivity deadline is five minutes after
+the latest reply; this deadline marks the end without a scheduled database write.
+Signing out, starting a new conversation or leaving the page sends a close request.
+Page-close delivery is best effort; inactivity handles missing close requests.
+Collapsing the assistant does not close the session. Later questions start a new
+Bedrock conversation. History has no automatic expiry, has point-in-time recovery
+enabled and is retained if the CloudFormation stack is deleted. The chat notice
+discloses transcript storage. The website does not expose a history-reading API.
+
 `knowledge/cv.txt` is the curated knowledge source. It contains structured career
 records, responsibilities, achievements, technologies, credentials and textual
 interpretations of the PDF's graphical ratings. Inferred CEFR equivalents are

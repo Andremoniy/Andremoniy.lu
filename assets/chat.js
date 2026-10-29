@@ -8,7 +8,7 @@
   const panel = document.createElement('section');
   panel.id = 'cv-chat'; panel.className = 'cv-chat'; panel.hidden = true;
   panel.setAttribute('aria-label', 'CV assistant');
-  panel.innerHTML = `<header><span class="bot-avatar">AI</span><strong>Ask about my experience</strong><button type="button" aria-label="Sign out" hidden>Sign out</button><button type="button" aria-label="Start a new conversation">↻</button><button type="button" aria-label="Collapse assistant">−</button></header><div class="cv-chat-log" role="log" aria-live="polite" aria-relevant="additions"></div><form><input aria-label="Question about Andrey's experience" placeholder="Ask about my experience…" maxlength="1000" required autocomplete="off"><button type="submit">Send</button></form><p class="cv-chat-note">Sign in to chat. Your profile name personalizes replies. AI answers may contain mistakes. Questions and your name are processed by AWS Bedrock; avoid confidential information.</p>`;
+  panel.innerHTML = `<header><span class="bot-avatar">AI</span><strong>Ask about my experience</strong><button type="button" aria-label="Sign out" hidden>Sign out</button><button type="button" aria-label="Start a new conversation">↻</button><button type="button" aria-label="Collapse assistant">−</button></header><div class="cv-chat-log" role="log" aria-live="polite" aria-relevant="additions"></div><form><input aria-label="Question about Andrey's experience" placeholder="Ask about my experience…" maxlength="1000" required autocomplete="off"><button type="submit">Send</button></form><p class="cv-chat-note">Sign in to chat. Your profile name personalizes replies. AI answers may contain mistakes. Conversations are saved, linked to your account. Questions and your name are processed by AWS Bedrock; avoid confidential information.</p>`;
   document.body.append(launcher, panel);
   const log = panel.querySelector('[role=log]');
   const form = panel.querySelector('form');
@@ -17,6 +17,7 @@
   const auth = window.portfolioAuth;
   const signOut = panel.querySelector('[aria-label="Sign out"]');
   let sessionId, activeController, busy = false, generation = 0, loginMessage;
+  let lastActivityAt = 0;
   let endpoint;
   const config = (auth?.ready || Promise.resolve(null)).then(configuration => {
     if (configuration?.endpoint && new URL(configuration.endpoint).protocol === 'https:') endpoint = configuration.endpoint;
@@ -33,6 +34,20 @@
     panel.hidden = !open; launcher.setAttribute('aria-expanded', String(open));
     if (open) input.focus(); else launcher.focus();
   }
+  function closeConversation(conversation = sessionId) {
+    const accessToken = auth?.getAccessToken();
+    if (!endpoint || !conversation || !accessToken) return;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    return fetch(endpoint, {method: 'POST', keepalive: true, signal: controller.signal,
+      headers: {'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}`},
+      body: JSON.stringify({action: 'close', sessionId: conversation})})
+      .catch(() => {}).finally(() => clearTimeout(timeout));
+  }
+  window.addEventListener('pagehide', () => {
+    closeConversation();
+    sessionId = undefined;
+  });
   function requireSignIn(question) {
     loginMessage?.remove();
     loginMessage = message('Sign in to continue. Your question will be kept ready.');
@@ -51,15 +66,18 @@
   panel.querySelector('[aria-label="Collapse assistant"]').addEventListener('click', () => toggle(false));
   panel.addEventListener('keydown', e => { if (e.key === 'Escape') toggle(false); });
   panel.querySelector('[aria-label="Start a new conversation"]').addEventListener('click', () => {
+    closeConversation();
     activeController?.abort();
     generation++; sessionId = undefined; loginMessage = undefined; log.replaceChildren();
     message('New conversation. What would you like to know about my experience?');
     busy = false; send.disabled = false; input.focus();
   });
   signOut.addEventListener('click', async () => {
+    const closing = closeConversation();
     generation++; activeController?.abort(); sessionId = undefined; busy = false;
     send.disabled = false; signOut.hidden = true; log.replaceChildren();
     message('You have signed out. Sign in again to continue chatting.');
+    await closing;
     try { await auth.signOut(); } catch { auth.clearAuthentication(); }
   });
   document.querySelectorAll('a[href$="#assistant"]').forEach(a => a.addEventListener('click', e => {
@@ -74,6 +92,10 @@
     e.preventDefault();
     const question = input.value.trim();
     if (!question || busy) return;
+    if (sessionId && Date.now() - lastActivityAt > 300000) {
+      sessionId = undefined;
+      message('The previous conversation ended after five minutes of inactivity. Starting a new conversation.');
+    }
     const current = generation;
     const conversation = sessionId;
     busy = true; send.disabled = true; input.value = '';
@@ -110,8 +132,8 @@
       }
       if (!response.ok) throw new Error(response.status === 429 ? 'The assistant is busy. Please wait a moment and try again.' : data.error || 'The assistant is temporarily unavailable. Please try again.');
       if (typeof data.answer !== 'string') throw new Error('The assistant returned an unexpected response. Please try again.');
-      if (generation !== current) return;
-      sessionId = data.sessionId; pending.textContent = data.answer;
+      if (generation !== current) { closeConversation(data.sessionId); return; }
+      sessionId = data.sessionId; lastActivityAt = Date.now(); pending.textContent = data.answer;
     } catch (error) {
       if (generation === current) {
         pending.textContent = error.name === 'AbortError' ? 'The request timed out. Please try again.' : error.message;

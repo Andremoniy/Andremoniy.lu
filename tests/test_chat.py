@@ -49,6 +49,7 @@ class ChatTests(unittest.TestCase):
             'AUTH_CLIENT_ID': 'chat-client',
             'AUTH_DOMAIN': 'https://login.example.com',
             'CHAT_STATE_TABLE': 'chat-state',
+            'CHAT_HISTORY_TABLE': 'chat-history',
             'QUESTIONS_PER_MINUTE': '10',
             'QUESTIONS_PER_DAY': '100',
             'GLOBAL_QUESTIONS_PER_DAY': '1000',
@@ -105,7 +106,7 @@ class ChatTests(unittest.TestCase):
         response_body = json.loads(response['body'])
         self.assertEqual(['ING: team of 10'], response_body['sources'])
         self.assertEqual('Alice', response_body['visitorName'])
-        saved_conversation = self.state_client.put_item.call_args.kwargs['Item']
+        saved_conversation = self.state_client.transact_write_items.call_args.kwargs['TransactItems'][0]['Put']['Item']
         self.assertEqual('visitor-123', saved_conversation['owner']['S'])
         self.assertNotIn('session-123', saved_conversation['recordId']['S'])
         self.assertNotIn('Alice', str(saved_conversation))
@@ -208,8 +209,45 @@ class ChatTests(unittest.TestCase):
 
     def test_expired_conversation_cannot_be_resumed(self):
         self.state_client.get_item.return_value['Item']['expiresAt'] = {'N': '1'}
-        self.assertEqual(403, self.request({'message': 'Follow up', 'sessionId': 'session-123'})['statusCode'])
+        self.bedrock_client.retrieve_and_generate.return_value = {
+            'output': {'text': 'Fresh answer'}, 'sessionId': 'fresh-session'}
+        self.assertEqual(200, self.request({'message': 'Follow up', 'sessionId': 'session-123'})['statusCode'])
+        self.assertNotIn('sessionId', self.bedrock_client.retrieve_and_generate.call_args.kwargs)
+
+    def test_transcript_and_deadline_are_saved_atomically(self):
+        self.bedrock_client.retrieve_and_generate.return_value = {
+            'output': {'text': 'He managed engineers.'}, 'sessionId': 'session-123'}
+        with patch.object(self.handler_module.time, 'time', return_value=1000000):
+            self.assertEqual(200, self.request({'message': 'Leadership?'})['statusCode'])
+        writes = self.state_client.transact_write_items.call_args.kwargs['TransactItems']
+        summary = writes[1]['Update']
+        turn = writes[2]['Put']['Item']
+        self.assertEqual('chat-history', summary['TableName'])
+        self.assertEqual('1000300', summary['ExpressionAttributeValues'][':deadline']['N'])
+        self.assertEqual('visitor-123', summary['ExpressionAttributeValues'][':owner']['S'])
+        self.assertEqual('Leadership?', turn['question']['S'])
+        self.assertEqual('He managed engineers.', turn['answer']['S'])
+        self.assertNotIn('expiresAt', turn)
+        self.assertNotIn('authorization', turn)
+
+    def test_close_does_not_consume_quota_or_call_bedrock(self):
+        self.assertEqual(200, self.request({'action': 'close', 'sessionId': 'session-123'})['statusCode'])
         self.bedrock_client.retrieve_and_generate.assert_not_called()
+        self.assertEqual(1, self.state_client.transact_write_items.call_count)
+        writes = self.state_client.transact_write_items.call_args.kwargs['TransactItems']
+        self.assertEqual('session_closed', writes[1]['Update']['ExpressionAttributeValues'][':reason']['S'])
+
+    def test_other_user_cannot_close_conversation(self):
+        self.state_client.get_item.return_value['Item']['owner'] = {'S': 'another-visitor'}
+        self.assertEqual(403, self.request({'action': 'close', 'sessionId': 'session-123'})['statusCode'])
+        self.state_client.transact_write_items.assert_not_called()
+
+    def test_closed_conversation_starts_fresh(self):
+        self.state_client.get_item.return_value['Item']['closedAt'] = {'N': '1000'}
+        self.bedrock_client.retrieve_and_generate.return_value = {
+            'output': {'text': 'Fresh answer'}, 'sessionId': 'fresh-session'}
+        self.assertEqual(200, self.request({'message': 'Hello', 'sessionId': 'session-123'})['statusCode'])
+        self.assertNotIn('sessionId', self.bedrock_client.retrieve_and_generate.call_args.kwargs)
 
     def test_profile_identity_must_match_token_subject(self):
         self.profile_response.__enter__.return_value.read.return_value = b'{"sub":"another-visitor"}'

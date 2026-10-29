@@ -73,7 +73,8 @@ async function run() {
   input.value = 'Retry question';
   panel.querySelector('form').dispatchEvent(new window.Event('submit', {cancelable: true}));
   await tick();
-  assert.equal(calls[2].sessionId, undefined);
+  assert.deepEqual(calls[2], {action: 'close', sessionId: 'session-123', authorization: 'Bearer signed-access-token'});
+  assert.equal(calls[3].sessionId, undefined);
   assert.match(panel.querySelector('[role=log]').textContent, /busy/);
   assert.equal(input.value, 'Retry question');
   assert.equal(panel.querySelector('button[type=submit]').disabled, false);
@@ -124,6 +125,46 @@ async function run() {
   assert.equal(resumedToken, null);
   assert.ok(resumedPanel.querySelector('.cv-chat-signin'));
   resumedDom.window.close();
+  const historyDom = new JSDOM('', {url: 'https://portfolio.example/', runScripts: 'outside-only'});
+  const historyWindow = historyDom.window;
+  const historyRequests = [];
+  let currentTime = 1000000;
+  historyWindow.Date.now = () => currentTime;
+  historyWindow.portfolioAuth = {
+    ready: Promise.resolve({endpoint: 'https://api.example/chat'}),
+    getAccessToken: () => 'signed-access-token',
+    consumePendingQuestion: () => '',
+    signOut: async () => {},
+  };
+  historyWindow.fetch = async (url, options) => {
+    const request = JSON.parse(options.body);
+    historyRequests.push({...request, keepalive: options.keepalive});
+    return {ok: true, status: 200, json: async () => ({answer: 'Answer', sessionId: 'history-session'})};
+  };
+  historyWindow.eval(source);
+  await tick();
+  async function askHistoryQuestion() {
+    historyWindow.document.querySelector('input').value = 'Experience?';
+    historyWindow.document.querySelector('form').dispatchEvent(new historyWindow.Event('submit', {cancelable: true}));
+    await tick();
+  }
+  await askHistoryQuestion();
+  currentTime += 300001;
+  await askHistoryQuestion();
+  assert.equal(historyRequests[1].sessionId, undefined);
+  assert.match(historyWindow.document.querySelector('[role=log]').textContent, /five minutes of inactivity/);
+  historyWindow.document.querySelector('[aria-label="Collapse assistant"]').click();
+  assert.equal(historyRequests.length, 2);
+  historyWindow.dispatchEvent(new historyWindow.Event('pagehide'));
+  await tick();
+  assert.equal(historyRequests[2].action, 'close');
+  assert.equal(historyRequests[2].keepalive, true);
+  await askHistoryQuestion();
+  assert.equal(historyRequests[3].sessionId, undefined);
+  historyWindow.document.querySelector('[aria-label="Sign out"]').click();
+  await tick();
+  assert.equal(historyRequests[4].action, 'close');
+  historyDom.window.close();
   console.log('Chat DOM checks passed: anonymous sign-in gate, saved question, bearer token, follow-up, reset, safe text, hidden sources, throttle/retry, sign-out.');
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });
