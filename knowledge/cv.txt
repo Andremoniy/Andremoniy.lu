@@ -9,7 +9,8 @@ Professional focus: Solution Architect; enterprise and solution architecture; ar
 Qualification: Ph.D. in Computer Science.
 Experience stated in the CV: over 20 years in IT, including more than 10 years in architect, technical-lead or design-authority roles.
 Architecture practice: documenting architecture decisions, consolidating IT landscapes, and building consensus with senior stakeholders, product owners, security specialists and engineering teams.
-Location: Petange (Pétange), Luxembourg. Nationality stated in the CV: Luxembourgish.
+Citizenship: Luxembourgish. Andrey Lebedev is a citizen of Luxembourg.
+Residence: Andrey Lebedev lives in Luxembourg (the country), in Pétange (Petange). Luxembourg is his current country of residence, not merely a previous workplace.
 Credential summary: AWS and TOGAF certified; detailed credential years appear below.
 
 PEOPLE MANAGEMENT AND ENGINEERING MANAGEMENT EXPERIENCE
