@@ -1,0 +1,35 @@
+.architecture-intro { max-width: 820px; }
+#deployment, #runtime, #data-security { scroll-margin-top: 130px; }
+.architecture-jump-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.architecture-jump-links a { color: var(--green); font-weight: 700; text-underline-offset: 5px; }
+.architecture-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; margin-top: 30px; }
+.architecture-summary article { padding: 26px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.architecture-summary h3 { margin: 12px 0; font-size: 22px; letter-spacing: -.03em; }
+.architecture-summary p, .architecture-copy p, .architecture-steps p { color: var(--muted); line-height: 1.8; }
+.architecture-summary p { margin: 0; }
+.architecture-figure { margin: 32px 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #f7f9fc; }
+.architecture-figure > a { display: block; }
+.architecture-figure img { display: block; width: 100%; height: auto; }
+.architecture-figure > a:focus-visible { outline: 3px solid var(--accent); outline-offset: -4px; }
+.architecture-figure figcaption { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; border-top: 1px solid var(--line); padding: 18px 22px; font-size: 13px; background: var(--paper); color: var(--muted); }
+.architecture-downloads { display: flex; flex-wrap: wrap; gap: 18px; }
+.architecture-downloads a { color: var(--green); font-weight: 700; text-underline-offset: 4px; }
+.architecture-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 38px; padding-left: 24px; margin: 30px 0 0; }
+.architecture-steps li { padding-left: 5px; }
+.architecture-steps li::marker { color: var(--accent); font-weight: 700; }
+.architecture-steps h3 { font-size: 19px; margin: 0 0 8px; }
+.architecture-steps p { margin: 0; }
+.architecture-table-wrap { overflow-x: auto; margin-top: 30px; }
+.architecture-table { border-collapse: collapse; width: 100%; font-size: 14px; text-align: left; }
+.architecture-table th, .architecture-table td { padding: 18px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.7; }
+.architecture-table th { color: var(--green); background: #e9eee7; }
+.architecture-table td:first-child { min-width: 175px; font-weight: 700; }
+.architecture-copy { max-width: 880px; }
+.architecture-source { font-size: 13px; color: var(--muted); line-height: 1.8; margin-top: 26px; }
+.architecture-source a { color: var(--green); text-underline-offset: 4px; }
+@media (max-width: 780px) {
+  .architecture-summary, .architecture-steps { grid-template-columns: 1fr; }
+  .architecture-figure { margin-left: -8px; margin-right: -8px; }
+  .architecture-figure figcaption { align-items: flex-start; flex-direction: column; }
+  .architecture-summary article { padding: 22px; }
+}

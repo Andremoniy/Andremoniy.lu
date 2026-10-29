@@ -97,9 +97,14 @@ a personal quota. These are request-count limits, not dollar-denominated spendin
 caps: API, identity, database and traffic charges can continue after model calls
 stop. Existing external budget alerts are independent of these counters.
 
-The same DynamoDB table stores hashed conversation IDs, their owner ID and a
-rolling one-hour expiry. Lambda checks ownership and expiry before resuming a
-Bedrock session. The table stores no transcript, profile name or email address.
+The state table also stores hashed conversation IDs, their owner ID and a
+five-minute inactivity deadline. Lambda checks ownership and the deadline before
+resuming a Bedrock session. A separate encrypted history table retains timestamped
+questions and answers, grouped by conversation and linked to the Cognito subject.
+Its summary records the effective end time, extended on each exchange or set by
+an explicit session-close request. History has no automatic expiry, has
+point-in-time recovery enabled and is retained on stack deletion. Neither table
+stores access tokens, profile names or email addresses.
 The user pool stores identity attributes. Lambda retrieves the visitor's name
 from Cognito's authenticated userInfo endpoint, verifies the returned subject,
 sanitizes the name and includes it as data in the generation prompt. A name is
