@@ -37,12 +37,20 @@ class KnowledgeConfiguration:
 
 
 def read_knowledge_configuration():
-    """Return no configuration for static builds; reject partially configured builds."""
+    """Allow disconnected local previews while requiring complete Amplify configuration."""
     environment_values = [os.environ.get(name) for name in ENVIRONMENT_VARIABLE_NAMES]
     if all(environment_values):
         return KnowledgeConfiguration(*environment_values)
-    if any(environment_values):
-        raise RuntimeError("Incomplete chat build environment")
+    if any(environment_values) or os.environ.get("AWS_APP_ID"):
+        missing_variables = [
+            name for name in ENVIRONMENT_VARIABLE_NAMES if not os.environ.get(name)
+        ]
+        raise RuntimeError(
+            "Incomplete chat build environment. Missing: "
+            + ", ".join(missing_variables)
+            + ". Deploy aws/amplify.yaml to the existing CloudFormation stack "
+            "before starting an Amplify release."
+        )
     return None
 
 

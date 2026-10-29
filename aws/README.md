@@ -23,6 +23,9 @@ The build uploads text only when its SHA-256 digest changes, synchronizes the
 knowledge base on every release, and waits up to 20 minutes for completion.
 Ingestion failures prevent successful release publication. The generated
 `dist/assets/chat-config.json` contains only the public API endpoint.
+Amplify builds also fail when stack-managed chat variables are absent, identifying
+the missing variables in the build error. Disconnected configuration is available
+only outside Amplify for local previews.
 
 Bedrock uses retrieval augmented generation rather than model training. Titan
 Text Embeddings v2 produces 1,024-dimensional vectors from 400-token chunks with
@@ -32,7 +35,10 @@ source bucket blocks public access and rejects insecure transport.
 
 The public API accepts questions of up to 1,000 characters and limits generated
 answers to 600 tokens. API Gateway allows one request per second with a burst of
-four; Lambda concurrency is two. Exact-origin CORS covers the apex, `www` and the
+four. Lambda uses shared account concurrency by default. A positive
+`ChatReservedConcurrency` parameter reserves and caps concurrent chat executions
+when the account quota allows it. The default value of zero omits the reservation;
+it does not disable the function. Exact-origin CORS covers the apex, `www` and the
 configured Amplify branch hostname. Origin restrictions are not authentication
 and do not prevent non-browser callers from spoofing the Origin header.
 

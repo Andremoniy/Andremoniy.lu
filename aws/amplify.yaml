@@ -2,6 +2,11 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: Amplify Hosting and Route 53 DNS for the Andremoniy portfolio.
 
 Parameters:
+  ChatReservedConcurrency:
+    Type: Number
+    Default: 0
+    MinValue: 0
+    Description: Positive values reserve and cap concurrent chat executions; 0 omits the reservation and uses shared account concurrency.
   ChatModelId:
     Type: String
     Default: anthropic.claude-3-haiku-20240307-v1:0
@@ -31,6 +36,7 @@ Parameters:
     Description: Associates the domain with Amplify when enabled; disable on the first deployment until NS delegation is configured.
 
 Conditions:
+  ReserveChatConcurrency: !Not [!Equals [!Ref ChatReservedConcurrency, 0]]
   UseCustomDomain: !Equals [!Ref EnableCustomDomain, 'true']
 
 Resources:
@@ -269,7 +275,10 @@ Resources:
       Role: !GetAtt ChatRole.Arn
       Timeout: 29
       MemorySize: 256
-      ReservedConcurrentExecutions: 2
+      ReservedConcurrentExecutions: !If
+        - ReserveChatConcurrency
+        - !Ref ChatReservedConcurrency
+        - !Ref AWS::NoValue
       Environment:
         Variables:
           KNOWLEDGE_BASE_ID: !Ref CvKnowledgeBase

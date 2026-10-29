@@ -179,6 +179,32 @@ class PublishTests(unittest.TestCase):
                 self.publisher_module.publish()
         self.assertFalse(Path('dist/assets/chat-config.json').exists())
 
+    def test_amplify_build_without_backend_configuration_fails(self):
+        build_environment = {
+            name: '' for name in self.publisher_module.ENVIRONMENT_VARIABLE_NAMES
+        }
+        build_environment['AWS_APP_ID'] = 'portfolio-app'
+        with patch.dict(os.environ, build_environment), patch.object(
+            self.publisher_module.boto3, 'client',
+        ) as create_client:
+            with self.assertRaisesRegex(RuntimeError, 'Deploy aws/amplify.yaml'):
+                self.publisher_module.publish()
+        create_client.assert_not_called()
+        self.assertFalse(Path('dist/assets/chat-config.json').exists())
+
+    def test_local_preview_without_backend_configuration_stays_disconnected(self):
+        local_environment = {
+            name: '' for name in self.publisher_module.ENVIRONMENT_VARIABLE_NAMES
+        }
+        local_environment['AWS_APP_ID'] = ''
+        with patch.dict(os.environ, local_environment), patch.object(
+            self.publisher_module.boto3, 'client',
+        ) as create_client:
+            self.publisher_module.publish()
+        create_client.assert_not_called()
+        public_configuration = json.loads(Path('dist/assets/chat-config.json').read_text())
+        self.assertEqual({'endpoint': None}, public_configuration)
+
 
 if __name__ == '__main__':
     unittest.main()
