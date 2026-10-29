@@ -249,6 +249,64 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(200, self.request({'message': 'Hello', 'sessionId': 'session-123'})['statusCode'])
         self.assertNotIn('sessionId', self.bedrock_client.retrieve_and_generate.call_args.kwargs)
 
+    def test_verified_email_is_saved_in_user_state_and_history_only(self):
+        self.profile_response.__enter__.return_value.read.return_value = json.dumps({
+            'sub': 'visitor-123', 'email': 'Alice+work@Example.com', 'email_verified': True,
+        }).encode()
+        self.bedrock_client.retrieve_and_generate.return_value = {
+            'output': {'text': 'Answer'}, 'sessionId': 'session-123'}
+        self.assertEqual(200, self.request({'message': 'Hello', 'email': 'attacker@example.com'})['statusCode'])
+        quota_writes = self.state_client.transact_write_items.call_args_list[0].kwargs['TransactItems']
+        for write in quota_writes[:2]:
+            self.assertEqual({'S': 'alice@example.com'}, write['Update']['ExpressionAttributeValues'][':email'])
+        for write in quota_writes[2:]:
+            self.assertNotIn(':email', write['Update']['ExpressionAttributeValues'])
+        history_writes = self.state_client.transact_write_items.call_args_list[1].kwargs['TransactItems']
+        self.assertEqual({'S': 'alice@example.com'}, history_writes[0]['Put']['Item']['email'])
+        self.assertEqual({'S': 'alice@example.com'}, history_writes[1]['Update']['ExpressionAttributeValues'][':email'])
+        self.assertEqual({'S': 'alice@example.com'}, history_writes[2]['Put']['Item']['email'])
+        self.assertEqual({'S': 'visitor-123'}, history_writes[2]['Put']['Item']['owner'])
+        self.assertNotIn('alice@example.com', json.dumps(self.bedrock_client.retrieve_and_generate.call_args.kwargs))
+
+    def test_cognito_client_can_read_email_verification_status(self):
+        client_properties = CLOUDFORMATION_TEMPLATE['Resources']['ChatUserPoolClient']['Properties']
+        self.assertIn('email', client_properties['ReadAttributes'])
+        self.assertIn('email_verified', client_properties['ReadAttributes'])
+        self.assertNotIn('email_verified', client_properties['WriteAttributes'])
+        profile = {'email': 'Alice@example.com', 'email_verified': 'true'}
+        self.assertEqual('alice@example.com', self.handler_module.verified_user_email(profile))
+
+    def test_every_exchange_includes_owner_and_verified_email(self):
+        self.profile_response.__enter__.return_value.read.return_value = json.dumps({
+            'sub': 'visitor-123', 'email': 'Alice@example.com', 'email_verified': True,
+        }).encode()
+        self.bedrock_client.retrieve_and_generate.return_value = {
+            'output': {'text': 'Answer'}, 'sessionId': 'session-123'}
+        for question in ('Leadership?', 'Which teams?', 'What responsibilities?'):
+            self.assertEqual(200, self.request({
+                'message': question, 'sessionId': 'session-123'})['statusCode'])
+        saved_turns = [call.kwargs['TransactItems'][2]['Put']['Item']
+            for call in self.state_client.transact_write_items.call_args_list
+            if 'Put' in call.kwargs['TransactItems'][2]]
+        self.assertEqual(3, len(saved_turns))
+        self.assertEqual(3, len({turn['entryId']['S'] for turn in saved_turns}))
+        for turn in saved_turns:
+            self.assertEqual({'S': 'visitor-123'}, turn['owner'])
+            self.assertEqual({'S': 'alice@example.com'}, turn['email'])
+
+    def test_unverified_or_missing_email_is_not_stored(self):
+        self.bedrock_client.retrieve_and_generate.return_value = {
+            'output': {'text': 'Answer'}, 'sessionId': 'session-123'}
+        for profile in ({'sub': 'visitor-123'}, {
+                'sub': 'visitor-123', 'email': 'unverified@example.com', 'email_verified': False}):
+            self.profile_response.__enter__.return_value.read.return_value = json.dumps(profile).encode()
+            self.assertEqual(200, self.request({'message': 'Hello'})['statusCode'])
+            history_writes = self.state_client.transact_write_items.call_args.kwargs['TransactItems']
+            self.assertNotIn('email', history_writes[0]['Put']['Item'])
+            self.assertNotIn(':email', history_writes[1]['Update']['ExpressionAttributeValues'])
+            self.assertNotIn('email', history_writes[2]['Put']['Item'])
+            self.assertEqual({'S': 'visitor-123'}, history_writes[2]['Put']['Item']['owner'])
+
     def test_profile_identity_must_match_token_subject(self):
         self.profile_response.__enter__.return_value.read.return_value = b'{"sub":"another-visitor"}'
         self.assertEqual(401, self.request({'message': 'AWS?'})['statusCode'])

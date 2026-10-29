@@ -20,7 +20,7 @@ Floating chat -> CloudFront -> HTTP API Gateway JWT authorizer -> Lambda -> Bedr
                                   DynamoDB user/global quotas and session ownership
 ```
 
-Amplify publishes the six static pages and official App Store artwork. Its build
+Amplify publishes the seven static pages and official App Store artwork. Its build
 role has access to the CV object and knowledge-base ingestion operations.
 The build uploads text only when its SHA-256 digest changes, synchronizes the
 knowledge base on every release, and waits up to 20 minutes for completion.
@@ -104,7 +104,12 @@ questions and answers, grouped by conversation and linked to the Cognito subject
 Its summary records the effective end time, extended on each exchange or set by
 an explicit session-close request. History has no automatic expiry, has
 point-in-time recovery enabled and is retained on stack deletion. Neither table
-stores access tokens, profile names or email addresses.
+stores access tokens or profile names. User quota and session records, history
+summaries and individual exchanges include a separate `email` attribute from
+the verified Cognito profile, lowercase and without a plus tag. Shared quota
+records have no email. Missing or unverified email attributes are omitted.
+Existing records receive the attribute only when rewritten by normal chat
+activity; older exchanges are not backfilled.
 The user pool stores identity attributes. Lambda retrieves the visitor's name
 from Cognito's authenticated userInfo endpoint, verifies the returned subject,
 sanitizes the name and includes it as data in the generation prompt. A name is

@@ -1,6 +1,6 @@
 # Andrey Lebedev · Portfolio
 
-Six-page static portfolio hosted on AWS Amplify, with professional experience,
+Seven-page static portfolio hosted on AWS Amplify, with professional experience,
 research, applications, 3D printing and art. HTML pages use relative links, and
 styles, images and browser scripts are stored in `assets/`.
 
@@ -17,7 +17,9 @@ and a private CloudFront origin token. DynamoDB enforces per-user quotas of
 10 questions per minute and 100 per UTC day, with atomic counters shared across
 the user's devices, plus shared limits of 1,000 questions per UTC day and 10,000
 per UTC calendar month. Verified email aliases share a normalized mailbox quota
-identity; only its hash is stored in the quota table. New registrations require
+identity; its hash identifies quota keys, and a separate `email` attribute stores
+the verified, lowercase address without a plus tag on user-specific records.
+Shared quota records have no user email. New registrations require
 a base email address without a `+tag`. Conversation ownership is checked server-side. The browser
 keeps the visible transcript in memory and the short-lived access token in
 tab-scoped session storage. The authenticated profile name personalizes replies
@@ -26,7 +28,8 @@ area is a demonstration.
 
 An encrypted DynamoDB history table retains questions and answers as separate,
 timestamped exchanges, grouped by conversation and linked to the Cognito user ID.
-It stores no access tokens or email addresses. A summary records the start, last
+The verified normalized email is also stored on history summaries and exchanges;
+access tokens are never stored. A summary records the start, last
 activity and effective end time. Its inactivity deadline is five minutes after
 the latest reply; this deadline marks the end without a scheduled database write.
 Signing out, starting a new conversation or leaving the page sends a close request.

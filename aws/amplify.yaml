@@ -492,7 +492,7 @@ Resources:
         - !If [UseAppleIdentity, !Ref AppleIdentity, !Ref AWS::NoValue]
         - !If [UseAmazonIdentity, !Ref AmazonIdentity, !Ref AWS::NoValue]
         - !If [UseMicrosoftIdentity, !Ref MicrosoftIdentity, !Ref AWS::NoValue]
-      ReadAttributes: [email, name, given_name]
+      ReadAttributes: [email, email_verified, name, given_name]
       WriteAttributes: [email, name, given_name]
       AccessTokenValidity: 15
       IdTokenValidity: 15
@@ -726,8 +726,30 @@ Resources:
               canonical_address = local_part + '@' + domain
               return 'mailbox-' + hashlib.sha256(canonical_address.encode()).hexdigest()
 
-          def quota_counter_update(quota_owner, window_name, window_number, limit, expires_at):
-              return {'Update': {
+          def verified_user_email(profile):
+              """Return a normalized, verified Cognito email without a plus tag."""
+              email_address = profile.get('email')
+              if (str(profile.get('email_verified', '')).lower() != 'true' or
+                      not isinstance(email_address, str) or
+                      not re.fullmatch(r'[^\s@]+@[^\s@]+', email_address.strip()) or
+                      len(email_address) > 320):
+                  return ''
+              local_part, domain = email_address.strip().lower().rsplit('@', 1)
+              local_part = local_part.split('+', 1)[0]
+              return local_part + '@' + domain if local_part else ''
+
+          def email_attributes(email_address):
+              return {'email': {'S': email_address}} if email_address else {}
+
+          def include_email_in_update(update, email_address):
+              if email_address:
+                  update['UpdateExpression'] += ', #email = :email'
+                  update.setdefault('ExpressionAttributeNames', {})['#email'] = 'email'
+                  update['ExpressionAttributeValues'][':email'] = {'S': email_address}
+              return update
+
+          def quota_counter_update(quota_owner, window_name, window_number, limit, expires_at, email_address=''):
+              update = {
                   'TableName': os.environ['CHAT_STATE_TABLE'],
                   'Key': {'recordId': {'S': f'quota#{quota_owner}#{window_name}#{window_number}'}},
                   'UpdateExpression': 'SET #count = if_not_exists(#count, :zero) + :one, expiresAt = :expiry',
@@ -735,9 +757,10 @@ Resources:
                   'ExpressionAttributeNames': {'#count': 'requestCount'},
                   'ExpressionAttributeValues': {
                       ':zero': {'N': '0'}, ':one': {'N': '1'},
-                      ':limit': {'N': str(limit)}, ':expiry': {'N': str(expires_at)}}}}
+                      ':limit': {'N': str(limit)}, ':expiry': {'N': str(expires_at)}}}
+              return {'Update': include_email_in_update(update, email_address)}
 
-          def consume_chat_quota(quota_owner):
+          def consume_chat_quota(quota_owner, email_address=''):
               """Atomically consume user and global allowances before any model invocation."""
               current_time = int(time.time())
               minute_reset = (current_time // 60 + 1) * 60
@@ -750,9 +773,9 @@ Resources:
               month_reset = int(next_month.timestamp())
               updates = [
                   quota_counter_update(quota_owner, 'minute', current_time // 60,
-                      int(os.environ['QUESTIONS_PER_MINUTE']), minute_reset + 86400),
+                      int(os.environ['QUESTIONS_PER_MINUTE']), minute_reset + 86400, email_address),
                   quota_counter_update(quota_owner, 'day', current_time // 86400,
-                      int(os.environ['QUESTIONS_PER_DAY']), day_reset + 86400),
+                      int(os.environ['QUESTIONS_PER_DAY']), day_reset + 86400, email_address),
                   quota_counter_update('global', 'day', current_time // 86400,
                       int(os.environ['GLOBAL_QUESTIONS_PER_DAY']), day_reset + 86400),
                   quota_counter_update('global', 'month', current_month.strftime('%Y-%m'),
@@ -786,7 +809,7 @@ Resources:
           def history_key(session_id, entry_id='summary'):
               return {**conversation_key(session_id), 'entryId': {'S': entry_id}}
 
-          def remember_conversation(user_id, session_id, question, answer):
+          def remember_conversation(user_id, session_id, question, answer, email_address=''):
               """Save each exchange separately and keep history independent of expiring quota state.
 
               endsAt is the effective inactivity deadline, extended by each exchange.
@@ -794,10 +817,10 @@ Resources:
               """
               current_time = int(time.time())
               deadline = current_time + 300
-              state_client.transact_write_items(TransactItems=[
+              conversation_writes = [
                   {'Put': {
                       'TableName': os.environ['CHAT_STATE_TABLE'],
-                      'Item': {**conversation_key(session_id), 'owner': {'S': user_id},
+                      'Item': {**conversation_key(session_id), **email_attributes(email_address), 'owner': {'S': user_id},
                                'expiresAt': {'N': str(deadline)}},
                       'ConditionExpression': '(attribute_not_exists(recordId) OR #owner = :owner) AND attribute_not_exists(closedAt)',
                       'ExpressionAttributeNames': {'#owner': 'owner'},
@@ -813,8 +836,12 @@ Resources:
                   {'Put': {
                       'TableName': os.environ['CHAT_HISTORY_TABLE'],
                       'Item': {**history_key(session_id, f'turn#{time.time_ns():020d}#{uuid.uuid4().hex}'),
+                               **email_attributes(email_address),
+                               'owner': {'S': user_id},
                                'question': {'S': question}, 'answer': {'S': answer},
-                               'createdAt': {'N': str(current_time)}}}}])
+                               'createdAt': {'N': str(current_time)}}}}]
+              include_email_in_update(conversation_writes[1]['Update'], email_address)
+              state_client.transact_write_items(TransactItems=conversation_writes)
 
           def close_conversation(user_id, session_id):
               """Close an owned, active conversation without consuming model quota."""
@@ -973,12 +1000,13 @@ Resources:
               try:
                   session_id = require_owned_conversation(user_id, session_id)
                   visitor_profile = load_visitor_profile(user_id, authorization)
-                  consume_chat_quota(quota_identity(user_id, visitor_profile))
+                  email_address = verified_user_email(visitor_profile)
+                  consume_chat_quota(quota_identity(user_id, visitor_profile), email_address)
                   visitor_name = sanitize_display_name(visitor_profile)
                   retrieval_request = build_retrieval_request(question, session_id, visitor_name)
                   retrieval_result = bedrock_client.retrieve_and_generate(**retrieval_request)
                   remember_conversation(user_id, retrieval_result['sessionId'],
-                                        question, retrieval_result['output']['text'])
+                                        question, retrieval_result['output']['text'], email_address)
                   return json_response(200, {**format_chat_answer(retrieval_result),
                                              'visitorName': visitor_name})
               except AuthenticationRequiredError:
