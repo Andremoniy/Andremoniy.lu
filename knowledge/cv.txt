@@ -543,6 +543,7 @@ Role and delivery: Andrey architected and deployed his own public, serverless, p
 - Embeddings are stored in a private, dedicated Amazon S3 Vectors bucket and index, separate from the source-document bucket.
 - At runtime AWS Lambda invokes Amazon Bedrock RetrieveAndGenerate: the knowledge base retrieves relevant CV passages from the vector store and Amazon Nova Lite uses them to compose a grounded response.
 - The generation model is Amazon Nova Lite (amazon.nova-lite-v1:0), using an EU cross-Region inference profile (eu.amazon.nova-lite-v1:0) from the primary Ireland Region, eu-west-1.
+- The infrastructure template provisions a versioned Amazon Bedrock Guardrail attached to every RetrieveAndGenerate request. It defines denied topics for programming deliverables and command tutorials, general-purpose tasks and personalized professional advice, plus input prompt-attack filtering. A stricter portfolio-only prompt keeps biographical questions about Andrey's skills, qualifications and projects in scope. Guardrail interventions return a fixed scope refusal, which is saved in the conversation history. These controls require the updated CloudFormation stack to be deployed; managed filtering is probabilistic, not a guarantee that every unrelated request is detected.
 - This is RAG and inference against an existing managed foundation model, not custom model training or fine-tuning. Grounding mitigates hallucination but does not guarantee error-free answers.
 
 4B. RUNTIME / SECURITY ARCHITECTURE

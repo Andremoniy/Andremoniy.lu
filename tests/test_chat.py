@@ -46,6 +46,8 @@ class ChatTests(unittest.TestCase):
             'ALLOWED_ORIGINS': 'https://example.com',
             'KNOWLEDGE_BASE_ID': 'KB12345678',
             'MODEL_ARN': 'model',
+            'GUARDRAIL_ID': 'cv-scope-guardrail',
+            'GUARDRAIL_VERSION': '1',
             'AUTH_CLIENT_ID': 'chat-client',
             'AUTH_DOMAIN': 'https://login.example.com',
             'CHAT_STATE_TABLE': 'chat-state',
@@ -133,6 +135,77 @@ class ChatTests(unittest.TestCase):
         response = self.request({'message': 'AWS?'})
         self.assertEqual(429, response['statusCode'])
         self.assertNotIn('private internal details', response['body'])
+
+    def test_every_generation_uses_the_published_guardrail(self):
+        for question in ('Write me a hello world in python', 'Explain git reset', 'Has Andrey used Python?', 'Which teams did he lead?'):
+            request = self.handler_module.build_retrieval_request(question, None)
+            configuration = request['retrieveAndGenerateConfiguration']['knowledgeBaseConfiguration']['generationConfiguration']
+            self.assertEqual({'guardrailId': 'cv-scope-guardrail', 'guardrailVersion': '1'}, configuration['guardrailConfiguration'])
+            self.assertIn('Never fulfill requests to write, edit or debug code', configuration['promptTemplate']['textPromptTemplate'])
+            self.assertIn('Short follow-up questions', configuration['promptTemplate']['textPromptTemplate'])
+
+    def test_guardrail_intervention_returns_and_saves_only_the_refusal(self):
+        for question in ('Write me a hello world in python', 'Explain git reset'):
+            self.bedrock_client.retrieve_and_generate.return_value = {
+                'output': {'text': 'unsafe completion that must not be returned'},
+                'sessionId': 'session-123', 'guardrailAction': 'INTERVENED',
+                'citations': [{'retrievedReferences': [{'content': {'text': 'unrelated evidence'}}]}]}
+            response = self.request({'message': question})
+            self.assertEqual(200, response['statusCode'])
+            body = json.loads(response['body'])
+            self.assertEqual(self.handler_module.SCOPE_REFUSAL, body['answer'])
+            self.assertEqual([], body['sources'])
+            turn = self.state_client.transact_write_items.call_args.kwargs['TransactItems'][2]['Put']['Item']
+            self.assertEqual(self.handler_module.SCOPE_REFUSAL, turn['answer']['S'])
+
+    def test_guardrail_configuration_cannot_be_overridden_by_the_client(self):
+        self.bedrock_client.retrieve_and_generate.return_value = {
+            'output': {'text': 'Career answer'}, 'sessionId': 'session-123', 'guardrailAction': 'NONE'}
+        response = self.request({'message': 'Leadership?', 'guardrailConfiguration': {}, 'guardrailVersion': 'DRAFT'})
+        self.assertEqual(200, response['statusCode'])
+        request = self.bedrock_client.retrieve_and_generate.call_args.kwargs
+        configuration = request['retrieveAndGenerateConfiguration']['knowledgeBaseConfiguration']['generationConfiguration']
+        self.assertEqual('1', configuration['guardrailConfiguration']['guardrailVersion'])
+
+    def test_missing_guardrail_configuration_fails_closed(self):
+        with patch.dict(os.environ):
+            del os.environ['GUARDRAIL_ID']
+            self.assertEqual(503, self.request({'message': 'Leadership?'})['statusCode'])
+        for invalid_configuration in ({'GUARDRAIL_ID': ''}, {'GUARDRAIL_VERSION': 'DRAFT'}):
+            with patch.dict(os.environ, invalid_configuration):
+                self.assertEqual(503, self.request({'message': 'Leadership?'})['statusCode'])
+        self.bedrock_client.retrieve_and_generate.assert_not_called()
+
+    def test_guardrail_policy_and_permissions_are_provisioned(self):
+        resources = CLOUDFORMATION_TEMPLATE['Resources']
+        policy = resources['ChatGuardrail']['Properties']
+        topics = policy['TopicPolicyConfig']['TopicsConfig']
+        self.assertIn('Write me a hello world in python', topics[0]['Examples'])
+        for topic in topics:
+            self.assertTrue(topic['InputEnabled'])
+            self.assertTrue(topic['OutputEnabled'])
+            self.assertEqual('BLOCK', topic['InputAction'])
+            self.assertEqual('BLOCK', topic['OutputAction'])
+        filters = policy['ContentPolicyConfig']['FiltersConfig']
+        attack_filter = next(content_filter for content_filter in filters if content_filter['Type'] == 'PROMPT_ATTACK')
+        self.assertEqual('HIGH', attack_filter['InputStrength'])
+        self.assertTrue(attack_filter['InputEnabled'])
+        self.assertEqual('BLOCK', attack_filter['InputAction'])
+        self.assertFalse(attack_filter['OutputEnabled'])
+        self.assertEqual(self.handler_module.SCOPE_REFUSAL, policy['BlockedInputMessaging'])
+        self.assertEqual(self.handler_module.SCOPE_REFUSAL, policy['BlockedOutputsMessaging'])
+        self.assertEqual('AWS::Bedrock::GuardrailVersion', resources['ChatGuardrailVersion']['Type'])
+        statements = resources['ChatRole']['Properties']['Policies'][0]['PolicyDocument']['Statement']
+        permission = next(statement for statement in statements if statement.get('Action') == 'bedrock:ApplyGuardrail')
+        self.assertEqual({'GetAtt': 'ChatGuardrail.GuardrailArn'}, permission['Resource'])
+
+    def test_guardrail_service_failure_does_not_retry_without_protection(self):
+        self.bedrock_client.retrieve_and_generate.side_effect = ClientError(
+            {'Error': {'Code': 'AccessDeniedException', 'Message': 'Guardrail access denied'}},
+            'RetrieveAndGenerate')
+        self.assertEqual(503, self.request({'message': 'Leadership?'})['statusCode'])
+        self.bedrock_client.retrieve_and_generate.assert_called_once()
+        self.assertEqual(1, self.state_client.transact_write_items.call_count)
 
     def test_bedrock_diagnostics_stay_in_server_logs(self):
         self.bedrock_client.retrieve_and_generate.side_effect = ClientError(

@@ -11,6 +11,16 @@ question automatically. Cognito supports email accounts and optional Google,
 Facebook/Meta, Apple, Amazon and Microsoft identities. Provider registrations
 and Secrets Manager credentials determine which social options are enabled.
 
+A versioned Amazon Bedrock Guardrail is attached to every knowledge-base
+generation request. Denied topics cover programming deliverables and tutorials,
+general-purpose tasks and personalized professional advice, with input and output
+blocking and a high-strength prompt-attack filter. The generation prompt limits
+the assistant to Andrey's background and portfolio; questions about his technical
+experience remain in scope. Guardrail interventions return and store a fixed
+scope refusal without source excerpts. Guardrail failures do not trigger an
+unguarded retry. Managed filtering is probabilistic and requires live validation
+after deployment; guardrail evaluations incur additional Bedrock usage charges.
+
 CloudFront fronts the API, rejects unsupported requests at the edge and forwards
 authorized chat requests without caching. The API requires a Cognito access token
 and a private CloudFront origin token. DynamoDB enforces per-user quotas of

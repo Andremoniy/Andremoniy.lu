@@ -57,6 +57,30 @@ replacement. Retained resources continue to incur storage charges. Request
 throttling is not a monthly spending cap. Knowledge ingestion precedes static
 publication, so failed releases do not atomically restore previous CV content.
 
+## CV assistant scope and Bedrock Guardrails
+
+CloudFormation provisions `ChatGuardrail` and a numbered `ChatGuardrailVersion`.
+Lambda attaches that ID and version to every `RetrieveAndGenerate` request and
+has `bedrock:ApplyGuardrail` permission scoped to that guardrail. Missing, empty
+or draft configuration prevents generation; there is no unguarded retry path.
+
+Denied topics apply to prompts and responses: programming deliverables and
+tutorials (including Python code and Git commands), general knowledge and creative
+tasks, and personalized medical, legal or financial advice. A high-strength input
+prompt-attack filter supplements the CV-only generation prompt. Biographical
+questions about technologies, leadership, qualifications and projects remain
+in scope. Detection is probabilistic; offline tests verify configuration and
+intervention handling, rather than managed-service classification quality.
+
+When Bedrock reports `INTERVENED`, Lambda returns and stores the fixed portfolio
+scope refusal and omits source excerpts. Refused requests still consume the
+normal chat allowances. Guardrail evaluations are separately billable Bedrock
+usage. The `ChatGuardrailId` and `ChatGuardrailVersion` outputs identify the
+deployed policy. A policy revision requires a new immutable version; changing
+the version resource's Description forces CloudFormation to publish a replacement
+snapshot after the guardrail update. The runtime diagram shows this as an attached
+input/output policy, rather than a separate network proxy.
+
 ## Authentication and per-user quotas
 
 The first submitted question is held in the browser until the visitor signs in.
