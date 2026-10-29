@@ -116,7 +116,10 @@ class ChatTests(unittest.TestCase):
         retrieval_configuration = retrieval_request['retrieveAndGenerateConfiguration']
         knowledge_configuration = retrieval_configuration['knowledgeBaseConfiguration']
         self.assertEqual('KB12345678', knowledge_configuration['knowledgeBaseId'])
+        self.assertEqual(10, knowledge_configuration['retrievalConfiguration']['vectorSearchConfiguration']['numberOfResults'])
         prompt_template = knowledge_configuration['generationConfiguration']['promptTemplate']
+        self.assertIn('including non-AWS certifications', prompt_template['textPromptTemplate'])
+        self.assertIn('merely because retrieval did not return it', prompt_template['textPromptTemplate'])
         self.assertIn('$search_results$', prompt_template['textPromptTemplate'])
         self.assertIn('$query$', prompt_template['textPromptTemplate'])
         self.assertIn('$output_format_instructions$', prompt_template['textPromptTemplate'])
