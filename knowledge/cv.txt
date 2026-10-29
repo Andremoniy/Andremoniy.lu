@@ -3,6 +3,15 @@ Source: Solution Architect CV, template.pdf, six pages.
 Content: curated professional facts, visually transcribed self-ratings and career records.
 Date precision: employment dates are years unless a duration is explicitly stated. A role ending in 2026 does not establish present employment.
 
+CERTIFICATIONS AND PROFESSIONAL CREDENTIALS - DIRECT ANSWER
+Question: What certificates, certifications and credentials does Andrey Lebedev have?
+Answer: Andrey has certifications from AWS, The Open Group, Scrum.org and Secure Flag, plus credentials from Quantexa and Scrum Inc. It is INCORRECT to answer that he only has AWS and TOGAF certifications.
+AWS certifications: AWS Certified Solutions Architect - Professional (2026; also listed for 2019); AWS Certified DevOps Engineer - Professional (2019); AWS Certified Advanced Networking - Specialty (2020); AWS Certified Security - Specialty (2019); AWS Certified Developer - Associate (2019); AWS Certified SysOps Administrator - Associate (2019); AWS Certified Cloud Practitioner (2019).
+Other certifications: TOGAF Enterprise Architecture Foundation (The Open Group, 2026); Professional Scrum Master II (Scrum.org, 2022); Professional Scrum Master I (Scrum.org, 2018); Blue Security Champion (Secure Flag, 2025).
+Other professional credentials: Quantexa Certified Platform Architect (2026); Registered Scrum Team Member (Scrum Inc., 2024).
+Training, not formal certifications: AWS SimuLearn - AI Architect badge (2026); Coursera Statements of Accomplishment for Automata (2014), Machine Learning (2013) and Natural Language Processing (2012).
+The years indicate CV-listed award years, not verified current validity. Do not infer certification expiry dates. For further detail, consult the full CERTIFICATIONS AND TRAINING section below.
+
 PROFESSIONAL PROFILE
 Name: Andrey Lebedev.
 Professional focus: Solution Architect; enterprise and solution architecture; architecture governance; integration architecture; data platforms; secure software development lifecycle (SDLC); technical leadership.
@@ -12,7 +21,7 @@ Architecture practice: documenting architecture decisions, consolidating IT land
 Citizenship: Luxembourgish. Andrey Lebedev is a citizen of Luxembourg.
 EU citizenship: Yes. Andrey Lebedev is a citizen of the European Union (EU).
 Residence: Andrey Lebedev lives in Luxembourg (the country), in Pétange (Petange). Luxembourg is his current country of residence, not merely a previous workplace.
-Credential summary: AWS and TOGAF certified; detailed credential years appear below.
+Credential summary: AWS, TOGAF, Scrum.org and Secure Flag certifications; Quantexa and Scrum Inc. credentials; AWS and Coursera training. For an individual list, see CERTIFICATIONS AND PROFESSIONAL CREDENTIALS - DIRECT ANSWER and CERTIFICATIONS AND TRAINING below.
 
 PEOPLE MANAGEMENT AND ENGINEERING MANAGEMENT EXPERIENCE
 Does Andrey Lebedev have experience in people management? Yes. He managed engineers at both ING Luxembourg and IntelInfo (also written Intelinfo).
