@@ -21,8 +21,22 @@
 <h1>A small website.<br/>A complete architecture.</h1>
 <p class="lede architecture-intro">A static portfolio on AWS Amplify, paired with an authenticated AI assistant that answers questions from my CV. Two architecture views show how the system is deployed and how it handles a conversation.</p>
 <div class="page-meta"><span>SERVERLESS · INFRASTRUCTURE AS CODE</span><span>BEDROCK · RETRIEVAL AUGMENTED GENERATION</span></div>
-<nav class="architecture-jump-links" aria-label="Architecture sections"><a href="#deployment">Deployment ↓</a><a href="#runtime">Runtime ↓</a><a href="#data-security">Data &amp; security ↓</a></nav>
+<nav class="architecture-jump-links" aria-label="Architecture sections"><a href="#story">How it was built ↓</a><a href="#deployment">Deployment ↓</a><a href="#runtime">Runtime ↓</a><a href="#data-security">Data &amp; security ↓</a></nav>
 </section>
+<section class="page-section" id="story" aria-labelledby="story-title"><div class="wrap">
+<article class="architecture-copy architecture-story">
+<div class="eyebrow">HOW IT WAS BUILT</div>
+<h2 id="story-title">From idea to production in less than three days.</h2>
+<p>This project is an example of a modern workflow with AI, from an initial idea to a working product in production. I combined the roles of Product Owner, IT Manager and Solution Architect, while OpenAI’s ChatGPT and Codex acted as my engineering team. By defining the requirements, steering the architecture and user experience, and reviewing and testing the implementation, I brought the finished product into production in less than three days.</p>
+<p>ChatGPT helped shape the initial ideas, and Codex did most of the implementation work: writing code, configuring AWS resources, connecting services, adding tests, updating documentation and generating architecture diagrams. My role was to steer the project, challenge decisions and test whether the result made sense in practice. Several architectural and UI/UX choices needed that intervention.</p>
+<p>My Codex setup includes general instructions requiring automated tests alongside code changes. Some tests are explicitly marked as protected: Codex is instructed to preserve them rather than arbitrarily change their expectations to make an implementation pass. These rules provide a baseline for checking the work, alongside reviewing changes and testing the application myself.</p>
+<p>One architectural decision was to use CloudFormation stacks for infrastructure deployment, making the configuration explicit, versioned and repeatable. Another was to choose lower-cost Amazon Nova models rather than retain the initial Claude option, then evaluate the trade-off between cost and answer quality.</p>
+<p>I also directed the addition of Bedrock Guardrails and designed the sequence of protections against abusive chat usage. These cover bot verification, origin checks, session authorization, conversation ownership and usage quotas before model invocation. Bedrock Guardrails and grounding instructions then help keep the assistant within its intended scope.</p>
+<p>Testing exposed problems that a successful deployment could not reveal. The assistant sometimes claimed that my CV contained no Kubernetes or Docker experience, even though the relevant information was present. Starting with a greeting could change the result of the next question. Increasing retrieval from 10 to 20 source chunks substantially improved the answers—a useful reminder that an AI application depends on the evidence supplied to the model as well as the model itself.</p>
+<p>The chat experience also evolved. Requiring registration before the first question introduced too much friction. The revised flow asks for a name and company as the minimum introduction, allows limited guest access, and offers sign-in when a guest allowance is exhausted.</p>
+<p>Codex handled most of the detailed implementation work. Human direction, testing and judgment shaped what that work became. The architecture below documents the resulting system.</p>
+</article>
+</div></section>
 <section class="page-section page-section-soft"><div class="wrap">
 <div class="split-head"><div><div class="eyebrow">SYSTEM OVERVIEW</div><h2>Static at the front. Serverless behind it.</h2></div><p>The public pages load independently of the assistant. Authentication, quotas, conversation storage and model inference sit behind a dedicated chat API.</p></div>
 <div class="architecture-summary">

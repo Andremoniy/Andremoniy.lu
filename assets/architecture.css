@@ -1,5 +1,7 @@
 .architecture-intro { max-width: 820px; }
-#deployment, #runtime, #data-security { scroll-margin-top: 130px; }
+#story, #deployment, #runtime, #data-security { scroll-margin-top: 130px; }
+.architecture-story { border-left: 3px solid var(--green); padding-left: clamp(18px, 4vw, 38px); }
+.architecture-story h2 { margin-top: 12px; }
 .architecture-jump-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
 .architecture-jump-links a { color: var(--green); font-weight: 700; text-underline-offset: 5px; }
 .architecture-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; margin-top: 30px; }
