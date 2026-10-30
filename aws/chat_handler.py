@@ -373,7 +373,7 @@ def build_retrieval_request(question, session_id, visitor_name=''):
                 'knowledgeBaseId': os.environ['KNOWLEDGE_BASE_ID'],
                 'modelArn': os.environ['MODEL_ARN'],
                 'retrievalConfiguration': {'vectorSearchConfiguration': {
-                    'numberOfResults': 10}},
+                    'numberOfResults': 20}},
                 'generationConfiguration': {
                     'guardrailConfiguration': guardrail_configuration(),
                     'promptTemplate': {'textPromptTemplate': personalized_prompt},

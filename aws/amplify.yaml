@@ -1122,7 +1122,7 @@ Resources:
                           'knowledgeBaseId': os.environ['KNOWLEDGE_BASE_ID'],
                           'modelArn': os.environ['MODEL_ARN'],
                           'retrievalConfiguration': {'vectorSearchConfiguration': {
-                              'numberOfResults': 10}},
+                              'numberOfResults': 20}},
                           'generationConfiguration': {
                               'guardrailConfiguration': guardrail_configuration(),
                               'promptTemplate': {'textPromptTemplate': personalized_prompt},
