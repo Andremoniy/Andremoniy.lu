@@ -4,12 +4,14 @@ Description: Amplify Hosting and Route 53 DNS for the Andremoniy portfolio.
 Parameters:
   TurnstileSiteKey:
     Type: String
+    Default: '0x4AAAAAAFscOGi8eBha117x'
     MinLength: 1
     MaxLength: 128
     AllowedPattern: '[A-Za-z0-9_-]+'
     Description: Public Cloudflare Managed Turnstile site key; never the secret.
   TurnstileSecretName:
     Type: String
+    Default: andremoniy/chat/turnstile
     MinLength: 1
     MaxLength: 512
     AllowedPattern: '[A-Za-z0-9/_+=.@-]+'

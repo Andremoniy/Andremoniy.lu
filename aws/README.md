@@ -481,7 +481,7 @@ requests if already above the new allowance.
 $AwsProfile = 'default'
 $AwsRegion = 'eu-west-1'
 $StackName = 'andremoniy-portfolio' # use the actual existing stack name
-$TurnstilePublicSiteKey = 'REPLACE_WITH_PUBLIC_SITE_KEY'
+$TurnstilePublicSiteKey = '0x4AAAAAAFscOGi8eBha117x'
 $TemplateBucket = aws cloudformation describe-stacks --stack-name $StackName `
   --query "Stacks[0].Outputs[?OutputKey=='CvSourceBucket'].OutputValue | [0]" `
   --output text --region $AwsRegion --profile $AwsProfile
@@ -512,10 +512,11 @@ aws cloudformation wait stack-update-complete --stack-name $StackName `
   --region $AwsRegion --profile $AwsProfile
 ```
 
-The generic deployment examples earlier also require `TurnstileSiteKey` and
-`TurnstileSecretName` on this first update (and on new stacks). Subsequent updates
-reuse those parameter values. This repository change does not execute any of
-these deployment commands.
+The template defaults now include the public `TurnstileSiteKey` above and the
+`TurnstileSecretName` value `andremoniy/chat/turnstile`. The secret itself must
+already exist in Secrets Manager; its value is never included in the template.
+Existing stack parameter overrides are reused unless explicitly changed.
+This repository change does not execute any of these deployment commands.
 
 For Amplify, stage the committed code on the configured production GitHub branch
 only when ready to release; pushes trigger automatic builds. Deploy the backend
