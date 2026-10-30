@@ -314,8 +314,8 @@ environment variables instead of producing a disconnected release.
   secret named `andremoniy/amplify/github`, with a JSON field named `token`.
 - Bedrock Knowledge Bases, S3 Vectors, Titan Text Embeddings v2 and the generation
   model available in the deployment Region, with required model access established.
-  `ChatModelId` defaults to `amazon.nova-lite-v1:0`;
-  `ChatInferenceProfileId` defaults to `eu.amazon.nova-lite-v1:0`.
+  `ChatModelId` defaults to `amazon.nova-pro-v1:0`;
+  `ChatInferenceProfileId` defaults to `eu.amazon.nova-pro-v1:0`.
   This profile supports Knowledge Bases from Ireland and routes generation within
   the EU. Model ID and profile must refer to the same model. An empty profile ID
   selects direct regional inference for models that support it. The IAM policy
@@ -418,7 +418,7 @@ are optional deployment overrides when different values are required.
 Changing `DomainName` can replace the hosted zone and domain association.
 
 An existing stack using a different model requires explicit model overrides during
-migration to Nova Lite; updated template defaults do not replace retained parameter
+migration to Nova Pro; updated template defaults do not replace retained parameter
 values. Both overrides keep the invoked profile and IAM model permissions aligned.
 
 ```powershell
@@ -429,8 +429,8 @@ aws cloudformation deploy `
   --s3-prefix cloudformation `
   --capabilities CAPABILITY_IAM `
   --parameter-overrides `
-    ChatModelId=amazon.nova-lite-v1:0 `
-    ChatInferenceProfileId=eu.amazon.nova-lite-v1:0 `
+    ChatModelId=amazon.nova-pro-v1:0 `
+    ChatInferenceProfileId=eu.amazon.nova-pro-v1:0 `
     ChatQuestionsPerMinute=10 `
     ChatQuestionsPerDay=100 `
     ChatGlobalQuestionsPerDay=1000 `

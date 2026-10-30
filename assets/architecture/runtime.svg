@@ -219,7 +219,7 @@
     </g>
 </svg>
 <text x="1335" y="998" fill="#192b36" font-size="16" font-weight="700">Amazon Bedrock</text>
-<text x="1266" y="1060" fill="#596b79" font-size="12" font-weight="400">Knowledge Base · Amazon Nova Lite</text>
+<text x="1266" y="1060" fill="#596b79" font-size="12" font-weight="400">Knowledge Base · Amazon Nova Pro</text>
 <text x="1266" y="1077" fill="#596b79" font-size="12" font-weight="400">Published Guardrails · grounded replies</text>
 <polyline points="1290,880 1290,920 570,920 570,960" fill="none" stroke="#192b36" stroke-width="1.7" stroke-linejoin="round" marker-end="url(#arrow)"/>
 <rect x="721.0" y="905" width="198.0" height="23" rx="4" fill="#fff"/>

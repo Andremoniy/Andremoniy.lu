@@ -163,7 +163,7 @@ def build_runtime_diagram():
     diagram.arrow([(1670, 620), (1670, 695), (945, 695), (945, 750)], 'Consistent reads · caching disabled', (1400, 695), PURPLE, True)
     diagram.card(400, 960, 'DynamoDB quotas', 'Guest visitor + keyed IP; verified user|Separate shared global counters', 'dynamodb', width=340)
     diagram.card(820, 960, 'DynamoDB history', 'Conversation ID · visitor · name/company|Email on upgrade · timestamped exchanges', 'dynamodb', width=350)
-    diagram.card(1250, 960, 'Amazon Bedrock', 'Knowledge Base · Amazon Nova Lite|Published Guardrails · grounded replies', 'bedrock', width=440)
+    diagram.card(1250, 960, 'Amazon Bedrock', 'Knowledge Base · Amazon Nova Pro|Published Guardrails · grounded replies', 'bedrock', width=440)
     diagram.arrow([(1290, 880), (1290, 920), (570, 920), (570, 960)], 'Revision-checked transaction', (820, 920))
     diagram.arrow([(1350, 880), (1350, 935), (995, 935), (995, 960)])
     diagram.arrow([(1470, 880), (1470, 960)])

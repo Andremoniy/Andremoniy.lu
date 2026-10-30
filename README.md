@@ -37,7 +37,7 @@ overwrites the trusted viewer-IP header; arbitrary forwarding headers are ignore
 Separate session-route throttling, IP/global creation counters and single-use
 Turnstile verification protect establishment before expensive model calls.
 
-Amazon Bedrock Knowledge Bases retrieves CV evidence and Amazon Nova Lite generates
+Amazon Bedrock Knowledge Bases retrieves CV evidence and Amazon Nova Pro generates
 grounded replies. Every generation retains the published Bedrock Guardrail,
 denied topics and prompt-attack filters; failures never trigger an unguarded retry.
 Name and company are explicitly untrusted context, used sparingly for

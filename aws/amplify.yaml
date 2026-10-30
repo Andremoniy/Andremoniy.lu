@@ -88,11 +88,11 @@ Parameters:
     Description: Positive values reserve and cap concurrent chat executions; 0 omits the reservation and uses shared account concurrency.
   ChatModelId:
     Type: String
-    Default: amazon.nova-lite-v1:0
+    Default: amazon.nova-pro-v1:0
     Description: Foundation model underlying the chat inference profile; model access must be available.
   ChatInferenceProfileId:
     Type: String
-    Default: eu.amazon.nova-lite-v1:0
+    Default: eu.amazon.nova-pro-v1:0
     AllowedPattern: '^$|^eu\.[a-zA-Z0-9.:-]+$'
     Description: Matching EU system inference profile ID; empty uses the foundation model directly in the stack Region.
   GitHubTokenSecretName:
