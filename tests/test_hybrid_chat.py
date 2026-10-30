@@ -352,6 +352,15 @@ class HybridChatTests(unittest.TestCase):
             source = (Path(__file__).resolve().parents[1] / 'aws' / filename).read_text(encoding='utf-8')
             self.assertEqual(source.strip(), resources[resource]['Properties']['Code']['ZipFile'].strip())
 
+    def test_stage_waits_for_each_route_named_in_route_settings(self):
+        resources = CLOUDFORMATION_TEMPLATE['Resources']
+        stage = resources['ChatStage']
+        routes = {resource['Properties']['RouteKey']: name for name, resource in resources.items()
+                  if resource['Type'] == 'AWS::ApiGatewayV2::Route'}
+        for route_key in stage['Properties']['RouteSettings']:
+            self.assertIn(routes[route_key], stage['DependsOn'],
+                          'Stage throttling must wait for its route to exist')
+
 
 if __name__ == '__main__':
     unittest.main()

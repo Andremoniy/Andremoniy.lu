@@ -2169,6 +2169,11 @@ Resources:
 
   ChatStage:
     Type: AWS::ApiGatewayV2::Stage
+    # RouteSettings contains literal route keys, which create no implicit dependency.
+    DependsOn:
+      - ChatRoute
+      - SessionRoute
+      - SessionUpgradeRoute
     Properties:
       ApiId: !Ref ChatApi
       StageName: $default
