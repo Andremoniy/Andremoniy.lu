@@ -9,6 +9,7 @@ const source = functionBlock[1].split(/\r?\n/).map(line => line.replace(/^      
   .replaceAll('${GitHubBranch}', 'main')
   .replaceAll('${PortfolioApp.DefaultDomain}', 'app.amplifyapp.com');
 const handler = runInNewContext(source + '\nhandler;');
+const invoke = event => handler({viewer: {ip: '192.0.2.123'}, ...event});
 
 function request(overrides = {}) {
   return {uri: '/chat', method: 'POST', headers: {
@@ -17,7 +18,7 @@ function request(overrides = {}) {
 }
 
 const validRequest = request();
-assert.equal(handler({request: validRequest}), validRequest);
+assert.equal(invoke({request: validRequest}), validRequest);
 assert.equal(handler({request: request({uri: '/other'})}).statusCode, 404);
 assert.equal(handler({request: request({method: 'GET'})}).statusCode, 405);
 assert.equal(handler({request: request({headers: {}})}).statusCode, 403);
@@ -25,7 +26,13 @@ const missingToken = request({headers: {origin: {value: 'https://portfolio.examp
 assert.equal(handler({request: missingToken}).statusCode, 401);
 assert.equal(handler({request: missingToken}).headers['access-control-allow-origin'].value, 'https://portfolio.example');
 const preflight = {...missingToken, method: 'OPTIONS'};
-assert.equal(handler({request: preflight}), preflight);
+assert.equal(invoke({request: preflight}), preflight);
+assert.equal(preflight.headers['x-portfolio-viewer-ip'].value, '192.0.2.123');
+const establish = request({uri: '/chat/session', headers: {origin: {value: 'https://portfolio.example'},
+  'x-portfolio-viewer-ip': {value: 'forged-ip'}}});
+assert.equal(invoke({request: establish}), establish);
+assert.equal(establish.headers['x-portfolio-viewer-ip'].value, '192.0.2.123', 'The viewer IP is overwritten at the trusted edge');
+assert.equal(invoke({request: request({uri: '/chat/session/upgrade'})}).uri, '/chat/session/upgrade');
 assert.equal(handler({request: request({headers: {
   origin: {value: 'https://attacker.example'}, authorization: {value: 'Bearer token'},
 }})}).statusCode, 403);

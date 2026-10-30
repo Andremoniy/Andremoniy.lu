@@ -56,12 +56,15 @@ class ChatTests(unittest.TestCase):
             'QUESTIONS_PER_DAY': '100',
             'GLOBAL_QUESTIONS_PER_DAY': '1000',
             'GLOBAL_QUESTIONS_PER_MONTH': '10000',
+            'GUEST_QUESTIONS_PER_DAY': '10', 'GUEST_IP_QUESTIONS_PER_MINUTE': '3',
+            'GUEST_IP_QUESTIONS_PER_DAY': '50', 'IP_HASH_KEY': 'test-ip-key',
             'ORIGIN_VERIFICATION_TOKEN': 'server-only-origin-token',
         })
         self.environment_patch.start()
         self.addCleanup(self.environment_patch.stop)
         self.state_client.get_item.return_value = {'Item': {
             'owner': {'S': 'visitor-123'}, 'endsAt': {'N': '9999999999'},
+            'bedrockSessionId': {'S': 'session-123'},
         }}
         self.quota_records = {}
         def read_database_item(**request):
@@ -79,11 +82,19 @@ class ChatTests(unittest.TestCase):
         self.addCleanup(self.profile_patch.stop)
 
     def event(self, request_body, origin='https://example.com', user_id='visitor-123'):
+        # Simulate trusted authorizer context; Chat Lambda never calls userInfo.
+        profile = json.loads(self.profile_response.__enter__.return_value.read.return_value)
+        email = self.handler_module.verified_user_email(profile)
+        identity = {'visitorId': user_id, 'conversationId': 'session-123', 'sessionHash': 'hash',
+            'name': 'Alice', 'company': 'Example Ltd', 'authStatus': 'authenticated' if email else 'guest',
+            'subject': user_id if email else '', 'email': email,
+            'quotaOwner': self.handler_module.quota_identity(user_id, profile) if email else ''}
         return {
             'headers': {'origin': origin, 'Authorization': 'Bearer signed-access-token',
+                        'X-Portfolio-Viewer-IP': '192.0.2.1',
                         'X-Portfolio-Origin': 'server-only-origin-token'},
             'body': json.dumps(request_body),
-            'requestContext': {'authorizer': {'jwt': {'claims': {
+            'requestContext': {'authorizer': {'lambda': identity, 'jwt': {'claims': {
                 'sub': user_id, 'token_use': 'access', 'client_id': 'chat-client',
                 'scope': 'openid profile portfolio-chat/ask',
             }}}},
@@ -118,7 +129,8 @@ class ChatTests(unittest.TestCase):
         saved_conversation = self.state_client.transact_write_items.call_args.kwargs['TransactItems'][1]['Put']['Item']
         self.assertEqual('visitor-123', saved_conversation['owner']['S'])
         self.assertNotIn('session-123', saved_conversation['recordId']['S'])
-        self.assertNotIn('Alice', str(saved_conversation))
+        self.assertEqual('Alice', saved_conversation['name']['S'])
+        self.assertEqual('Example Ltd', saved_conversation['company']['S'])
         self.assertNotIn('s3://', response['body'])
         retrieval_request = self.bedrock_client.retrieve_and_generate.call_args.kwargs
         self.assertEqual('session-123', retrieval_request['sessionId'])
@@ -247,7 +259,7 @@ class ChatTests(unittest.TestCase):
             response = self.request({'message': 'A visitor question'})
         diagnostic = json.loads(log_message.call_args.args[0])
         self.assertEqual('ValidationException', diagnostic['errorCode'])
-        self.assertEqual('Invalid model identifier', diagnostic['serviceMessage'])
+        self.assertNotIn('serviceMessage', diagnostic)
         self.assertEqual('bedrock-request-123', diagnostic['requestId'])
         self.assertEqual('model', diagnostic['modelArn'])
         self.assertNotIn('A visitor question', log_message.call_args.args[0])
@@ -255,7 +267,7 @@ class ChatTests(unittest.TestCase):
         self.assertNotIn('Invalid model identifier', response['body'])
         self.assertNotIn('bedrock-request-123', response['body'])
 
-    def test_anonymous_requests_never_reach_quotas_profile_or_bedrock(self):
+    def test_unestablished_requests_never_reach_quotas_profile_or_bedrock(self):
         anonymous_event = self.event({'message': 'AWS?'})
         anonymous_event.pop('requestContext')
         response = self.handler_module.handler(anonymous_event, None)
@@ -264,12 +276,13 @@ class ChatTests(unittest.TestCase):
         self.handler_module.urlopen.assert_not_called()
         self.bedrock_client.retrieve_and_generate.assert_not_called()
 
-    def test_id_tokens_and_wrong_clients_or_scopes_are_rejected(self):
+    def test_cognito_claims_alone_do_not_authorize_chat(self):
         invalid_claims = (
             {'token_use': 'id'}, {'client_id': 'different-client'}, {'scope': 'openid'},
         )
         for claim_override in invalid_claims:
             request_event = self.event({'message': 'AWS?'})
+            request_event['requestContext']['authorizer'].pop('lambda')
             request_event['requestContext']['authorizer']['jwt']['claims'].update(claim_override)
             self.assertEqual(401, self.handler_module.handler(request_event, None)['statusCode'])
         self.bedrock_client.retrieve_and_generate.assert_not_called()
@@ -288,10 +301,10 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(first_writes[1], second_writes[1])
 
     def test_quota_denial_returns_reset_time_and_stops_bedrock(self):
-        self.quota_records['quota#subject-visitor-123'] = {
-            'recordId': {'S': 'quota#subject-visitor-123'}, 'revision': {'N': '5'},
+        self.quota_records['quota#guest-visitor-123'] = {
+            'recordId': {'S': 'quota#guest-visitor-123'}, 'revision': {'N': '5'},
             'dayPeriodStart': {'S': self.handler_module.quota_timestamp(1000000 // 86400 * 86400)},
-            'dayRequestCount': {'N': '100'}}
+            'dayRequestCount': {'N': '10'}}
         with patch.object(self.handler_module.time, 'time', return_value=1000000):
             response = self.request({'message': 'AWS?'})
         self.assertEqual(429, response['statusCode'])
@@ -313,8 +326,8 @@ class ChatTests(unittest.TestCase):
         self.state_client.get_item.return_value['Item']['endsAt'] = {'N': '1'}
         self.bedrock_client.retrieve_and_generate.return_value = {
             'output': {'text': 'Fresh answer'}, 'sessionId': 'fresh-session'}
-        self.assertEqual(200, self.request({'message': 'Follow up', 'sessionId': 'session-123'})['statusCode'])
-        self.assertNotIn('sessionId', self.bedrock_client.retrieve_and_generate.call_args.kwargs)
+        self.assertEqual(403, self.request({'message': 'Follow up', 'sessionId': 'session-123'})['statusCode'])
+        self.bedrock_client.retrieve_and_generate.assert_not_called()
 
     def test_transcript_and_deadline_are_saved_atomically(self):
         self.bedrock_client.retrieve_and_generate.return_value = {
@@ -336,20 +349,21 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(200, self.request({'action': 'close', 'sessionId': 'session-123'})['statusCode'])
         self.bedrock_client.retrieve_and_generate.assert_not_called()
         self.state_client.transact_write_items.assert_not_called()
-        self.assertEqual('chat-history', self.state_client.update_item.call_args.kwargs['TableName'])
-        self.assertEqual('session_closed', self.state_client.update_item.call_args.kwargs['ExpressionAttributeValues'][':reason']['S'])
+        closure = next(call.kwargs for call in self.state_client.update_item.call_args_list
+                       if call.kwargs['TableName'] == 'chat-history')
+        self.assertEqual('session_closed', closure['ExpressionAttributeValues'][':reason']['S'])
 
     def test_other_user_cannot_close_conversation(self):
         self.state_client.get_item.return_value['Item']['owner'] = {'S': 'another-visitor'}
         self.assertEqual(403, self.request({'action': 'close', 'sessionId': 'session-123'})['statusCode'])
         self.state_client.transact_write_items.assert_not_called()
 
-    def test_closed_conversation_starts_fresh(self):
+    def test_closed_conversation_requires_new_session(self):
         self.state_client.get_item.return_value['Item']['closedAt'] = {'N': '1000'}
         self.bedrock_client.retrieve_and_generate.return_value = {
             'output': {'text': 'Fresh answer'}, 'sessionId': 'fresh-session'}
-        self.assertEqual(200, self.request({'message': 'Hello', 'sessionId': 'session-123'})['statusCode'])
-        self.assertNotIn('sessionId', self.bedrock_client.retrieve_and_generate.call_args.kwargs)
+        self.assertEqual(403, self.request({'message': 'Hello', 'sessionId': 'session-123'})['statusCode'])
+        self.bedrock_client.retrieve_and_generate.assert_not_called()
 
     def test_verified_email_is_saved_in_user_state_and_history_only(self):
         self.profile_response.__enter__.return_value.read.return_value = json.dumps({
@@ -361,7 +375,9 @@ class ChatTests(unittest.TestCase):
         quota_writes = self.state_client.transact_write_items.call_args_list[0].kwargs['TransactItems']
         self.assertEqual({'S': 'alice@example.com'}, quota_writes[0]['Put']['Item']['email'])
         self.assertEqual({'S': 'visitor-123'}, quota_writes[0]['Put']['Item']['owner'])
-        self.assertNotIn('email', quota_writes[1]['Put']['Item'])
+        global_item = next(write['Put']['Item'] for write in quota_writes
+                          if 'Put' in write and write['Put']['Item']['recordId']['S'] == 'quota#global')
+        self.assertNotIn('email', global_item)
         history_writes = self.state_client.transact_write_items.call_args_list[1].kwargs['TransactItems']
         self.assertEqual({'S': 'alice@example.com'}, history_writes[0]['Update']['ExpressionAttributeValues'][':email'])
         self.assertEqual({'S': 'alice@example.com'}, history_writes[1]['Put']['Item']['email'])
@@ -406,21 +422,22 @@ class ChatTests(unittest.TestCase):
             self.assertNotIn('email', history_writes[1]['Put']['Item'])
             self.assertEqual({'S': 'visitor-123'}, history_writes[1]['Put']['Item']['owner'])
 
-    def test_profile_identity_must_match_token_subject(self):
-        self.profile_response.__enter__.return_value.read.return_value = b'{"sub":"another-visitor"}'
-        self.assertEqual(401, self.request({'message': 'AWS?'})['statusCode'])
+    def test_missing_session_identity_is_rejected(self):
+        event = self.event({'message': 'AWS?'})
+        event['requestContext']['authorizer']['lambda'].pop('visitorId')
+        self.assertEqual(401, self.handler_module.handler(event, None)['statusCode'])
         self.bedrock_client.retrieve_and_generate.assert_not_called()
 
-    def test_missing_profile_name_does_not_fabricate_a_name(self):
+    def test_self_declared_name_is_independent_of_cognito_profile(self):
         self.profile_response.__enter__.return_value.read.return_value = b'{"sub":"visitor-123"}'
         self.bedrock_client.retrieve_and_generate.return_value = {
             'output': {'text': 'He has AWS experience.'}, 'sessionId': 'session-123',
         }
         response = self.request({'message': 'AWS?'})
-        self.assertEqual('', json.loads(response['body'])['visitorName'])
+        self.assertEqual('Alice', json.loads(response['body'])['visitorName'])
         retrieval_request = self.bedrock_client.retrieve_and_generate.call_args.kwargs
         prompt = retrieval_request['retrieveAndGenerateConfiguration']['knowledgeBaseConfiguration']
-        self.assertNotIn('Visitor display name', prompt['generationConfiguration']['promptTemplate']['textPromptTemplate'])
+        self.assertIn('Visitor display name', prompt['generationConfiguration']['promptTemplate']['textPromptTemplate'])
 
     def test_counter_store_failure_stops_generation(self):
         self.state_client.transact_write_items.side_effect = ClientError({
@@ -432,7 +449,7 @@ class ChatTests(unittest.TestCase):
         self.assertEqual('chat_service_failed', json.loads(log_message.call_args.args[0])['event'])
         self.bedrock_client.retrieve_and_generate.assert_not_called()
 
-    def test_visitor_name_is_profile_data_not_request_data(self):
+    def test_visitor_name_is_session_data_not_message_data(self):
         self.bedrock_client.retrieve_and_generate.return_value = {
             'output': {'text': 'Hello Alice'}, 'sessionId': 'session-123',
         }
@@ -574,6 +591,21 @@ class PublishTests(unittest.TestCase):
             self.publisher_module.boto3, 'client',
             side_effect=[storage_client, knowledge_client],
         )
+
+    def test_public_configuration_contains_only_public_turnstile_key(self):
+        with patch.dict(os.environ, {'TURNSTILE_SITE_KEY': 'public-widget-key', 'TURNSTILE_SECRET': 'never-public'}):
+            self.publisher_module.write_public_configuration('https://api.example/chat')
+        configuration = json.loads(Path('dist/assets/chat-config.json').read_text(encoding='utf-8'))
+        self.assertEqual('public-widget-key', configuration['turnstileSiteKey'])
+        self.assertNotIn('never-public', json.dumps(configuration))
+
+    def test_amplify_requires_turnstile_before_any_aws_call(self):
+        with patch.dict(os.environ, {'AWS_APP_ID': 'app'}):
+            os.environ.pop('TURNSTILE_SITE_KEY', None)
+            with patch.object(self.publisher_module.boto3, 'client') as client:
+                with self.assertRaisesRegex(RuntimeError, 'TURNSTILE_SITE_KEY'):
+                    self.publisher_module.publish()
+            client.assert_not_called()
 
     def test_upload_wait_and_public_configuration(self):
         storage_client, knowledge_client = MagicMock(), MagicMock()

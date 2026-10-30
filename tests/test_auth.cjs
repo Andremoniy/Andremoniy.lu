@@ -87,7 +87,15 @@ async function run() {
   assert.equal(callback.storage.getItem('portfolio-chat-auth'), null);
   await initial.auth.signOut();
   assert.equal(new URL(initial.navigation.at(-1)).pathname, '/logout');
-  [initial, callback, mismatch, expired, unsafeReturn].forEach(session => session.dom.window.close());
+  const blocked = createSession();
+  await blocked.auth.ready;
+  for (const method of ['getItem', 'removeItem']) {
+    Object.defineProperty(Object.getPrototypeOf(blocked.storage), method, {value() { throw Error('Storage blocked'); }});
+  }
+  assert.equal(blocked.auth.getAccessToken(), null, 'Blocked storage still permits guest mode');
+  assert.equal(blocked.auth.consumePendingQuestion(), '');
+  assert.doesNotThrow(() => blocked.auth.clearAuthentication());
+  [initial, callback, mismatch, expired, unsafeReturn, blocked].forEach(session => session.dom.window.close());
   console.log('OAuth checks passed: PKCE, state, expiry, token exchange, saved question, safe return path, sign-out.');
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });

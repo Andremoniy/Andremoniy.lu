@@ -6,15 +6,19 @@
   let configuration;
   let initializationError;
 
+  function removeStoredValue(key) {
+    try { sessionStorage.removeItem(key); } catch { /* Guest access can operate without browser storage. */ }
+  }
+
   function readStoredValue(key) {
     try { return JSON.parse(sessionStorage.getItem(key) || 'null'); }
-    catch { sessionStorage.removeItem(key); return null; }
+    catch { removeStoredValue(key); return null; }
   }
 
   function getAccessToken() {
     const session = readStoredValue(tokenKey);
     if (!session || typeof session.accessToken !== 'string' || session.expiresAt <= Date.now() + 30000) {
-      sessionStorage.removeItem(tokenKey);
+      removeStoredValue(tokenKey);
       return null;
     }
     return session.accessToken;
@@ -57,14 +61,14 @@
   }
 
   function clearAuthentication() {
-    sessionStorage.removeItem(tokenKey);
+    removeStoredValue(tokenKey);
   }
 
   async function signOut() {
     await ready;
     clearAuthentication();
-    sessionStorage.removeItem(flowKey);
-    sessionStorage.removeItem(resumeKey);
+    removeStoredValue(flowKey);
+    removeStoredValue(resumeKey);
     if (!configuration?.auth) return;
     const destination = new URL('/logout', configuration.auth.domain);
     destination.search = new URLSearchParams({
@@ -75,14 +79,14 @@
 
   function consumePendingQuestion() {
     const pending = readStoredValue(resumeKey);
-    sessionStorage.removeItem(resumeKey);
+    removeStoredValue(resumeKey);
     return pending?.expiresAt > Date.now() && typeof pending.question === 'string' ? pending.question : '';
   }
 
   async function finishSignIn() {
     const parameters = new URLSearchParams(location.search);
     const flow = readStoredValue(flowKey);
-    sessionStorage.removeItem(flowKey);
+    removeStoredValue(flowKey);
     history.replaceState(null, '', '/auth-callback.html');
     if (!flow || flow.expiresAt <= Date.now() || parameters.get('state') !== flow.state) {
       throw new Error('This sign-in request has expired or could not be verified. Return to the portfolio and try again.');

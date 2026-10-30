@@ -4,57 +4,53 @@ Seven-page static portfolio hosted on AWS Amplify, with professional experience,
 research, applications, 3D printing and art. HTML pages use relative links, and
 styles, images and browser scripts are stored in `assets/`.
 
-The floating, collapsible CV assistant uses Amazon Bedrock Knowledge Bases to
-retrieve career evidence and generate answers grounded in the CV. The first
-submitted question opens a sign-in prompt; successful sign-in returns to that
-question automatically. Cognito supports email accounts and optional Google,
-Facebook/Meta, Apple, Amazon and Microsoft identities. Provider registrations
-and Secrets Manager credentials determine which social options are enabled.
+The floating CV assistant starts in guest mode. Its existing greeting is followed
+by mandatory Name and Company fields and **Start chatting**. Both fields are
+self-declared; they are never authentication credentials. A selected question
+waits until a lightweight Session Lambda validates the introduction and a Managed
+Cloudflare Turnstile token, creates a retained conversation summary and issues a
+time-limited opaque chat credential. No Bedrock call happens at this stage.
 
-A versioned Amazon Bedrock Guardrail is attached to every knowledge-base
-generation request. Denied topics cover programming deliverables and tutorials,
-general-purpose tasks and personalized professional advice, with input and output
-blocking and a high-strength prompt-attack filter. The generation prompt limits
-the assistant to Andrey's background and portfolio; questions about his technical
-experience, soft skills, differentiators and suitable working environments remain
-in scope. Evidence-based interpretations are labelled, and recruiter questions
-using "you" refer to Andrey as the candidate. Guardrail interventions return and store a fixed
-scope refusal without source excerpts. Guardrail failures do not trigger an
-unguarded retry. Managed filtering is probabilistic and requires live validation
-after deployment; guardrail evaluations incur additional Bedrock usage charges.
+Every question passes through CloudFront, API Gateway and an uncached Lambda
+Authorizer before reaching Chat Lambda. Backend-issued visitor credentials persist
+in first-party localStorage for 180 days, where permitted. Chat credentials,
+transcript and OAuth continuation are tab-scoped. New conversations always require
+confirmation of name/company, including for signed-in users. Session credentials
+are stored only as hashes in DynamoDB and are bound to the visitor credential and
+one conversation. Idle conversations end after five minutes. Explicit reset,
+sign-out and page exit close a conversation; OAuth navigation preserves it.
 
-CloudFront fronts the API, rejects unsupported requests at the edge and forwards
-authorized chat requests without caching. The API requires a Cognito access token
-and a private CloudFront origin token. DynamoDB enforces per-user quotas of
-10 questions per minute and 100 per UTC day, with atomic counters shared across
-the user's devices, plus shared limits of 1,000 questions per UTC day and 10,000
-per UTC calendar month. Verified email aliases share a normalized mailbox quota
-row: `ChatStateTable` keeps one persistent row per quota identity and one global
-row. Minute/day and global day/month counts renew in place on the next request,
-with readable UTC period start/reset timestamps and revision-checked transactions.
-Existing time-window rows are read once during migration and left to TTL cleanup.
-Conversation ownership and inactivity deadlines live in history summaries.
-The identity hash identifies quota keys, and a separate `email` attribute stores
-the verified, lowercase address without a plus tag on user-specific records.
-Shared quota records have no user email. New registrations require
-a base email address without a `+tag`. Conversation ownership is checked server-side. The browser
-keeps the visible transcript in memory and the short-lived access token in
-tab-scoped session storage. The authenticated profile name personalizes replies
-when available; missing names receive generic wording. The tailored-CV recruiter
-area is a demonstration.
+Guest limits are 10 questions per visitor per UTC day and 3/minute plus 50/UTC day
+per keyed pseudonymous IP. Cognito is optional until a guest limit is reached.
+Email verification and optional social providers are preserved. A JWT-protected
+upgrade verifies the existing session and Cognito user, rotates the chat credential,
+and associates verified email with the same conversation. Pending questions and
+the visible transcript survive sign-in. Signed-in limits are 10/minute and
+100/UTC day. Global limits are 1,000/UTC day and 1,000/UTC calendar month,
+regardless of authentication. All allowances are configurable and reserved in one
+DynamoDB transaction before inference. Rate limits are not an AWS spending cap.
 
-An encrypted DynamoDB history table retains questions and answers as separate,
-timestamped exchanges, grouped by conversation and linked to the Cognito user ID.
-The verified normalized email is also stored on history summaries and exchanges;
-access tokens are never stored. A summary records the start, last
-activity and effective end time. Its inactivity deadline is five minutes after
-the latest reply; this deadline marks the end without a scheduled database write.
-Signing out, starting a new conversation or leaving the page sends a close request.
-Page-close delivery is best effort; inactivity handles missing close requests.
-Collapsing the assistant does not close the session. Later questions start a new
-Bedrock conversation. History has no automatic expiry, has point-in-time recovery
-enabled and is retained if the CloudFormation stack is deleted. The chat notice
-discloses transcript storage. The website does not expose a history-reading API.
+The existing persistent user/global quota rows, normalized verified mailbox keys
+and guarded legacy-counter migration remain. Guest visitor/IP rows expire after
+48 hours. Shared IP/global rows contain no name, company or email. CloudFront
+overwrites the trusted viewer-IP header; arbitrary forwarding headers are ignored.
+Separate session-route throttling, IP/global creation counters and single-use
+Turnstile verification protect establishment before expensive model calls.
+
+Amazon Bedrock Knowledge Bases retrieves CV evidence and Amazon Nova Lite generates
+grounded replies. Every generation retains the published Bedrock Guardrail,
+denied topics and prompt-attack filters; failures never trigger an unguarded retry.
+Name and company are explicitly untrusted context, used sparingly for
+personalisation and never to override grounding or infer a visitor's authority.
+
+The encrypted retained history table stores introductions even if no question is
+asked. Summaries and exchanges include name/company, visitor and conversation
+ownership, timestamps, authentication status, and verified email when available.
+The Bedrock continuation ID is distinct from the public conversation ID.
+History has no automatic expiry; existing records remain untouched, with
+point-in-time recovery and retention on stack deletion. See the accessible
+[Privacy & Cookies Notice](privacy.html) for storage, purposes, retention and rights.
+No advertising, analytics or optional tracking has been introduced.
 
 `knowledge/cv.txt` is the curated knowledge source. It contains structured career
 records, responsibilities, achievements, technologies, credentials and textual
@@ -77,6 +73,31 @@ CloudFormation deployment sequence.
 `scripts/publish_knowledge.py` publishes and synchronizes CV knowledge.
 Python contract tests cover the API handler, knowledge publisher and artwork
 processing. The offline JavaScript suites cover chat interactions, the sign-in
-gate, OAuth PKCE/state validation, saved-question restoration and safe text
+introduction, session authorisation, guest/IP/global quotas, secure upgrades, OAuth PKCE/state validation, saved-question restoration and safe text
 rendering. Test dependencies are `boto3`, `PyYAML` and `jsdom`; CloudFormation
 schema validation uses `cfn-lint`. The production frontend has no Node dependencies.
+
+Backend sources are `aws/chat_handler.py` and `aws/session_handler.py`.
+Run `python scripts/sync_chat_code.py` after changes; the CloudFormation inline
+code is checked with `--check`. Tests run against that deployable inline code:
+
+```powershell
+python -m pip install boto3 PyYAML 'moto[dynamodb]' cfn-lint cairosvg
+python scripts/sync_chat_code.py --check
+python -m unittest discover -s tests -p 'test_*.py'
+cfn-lint aws/amplify.yaml
+# Install jsdom outside the production website and set NODE_PATH if needed.
+node tests/test_chat_ui.cjs
+node tests/test_chat_edge.cjs
+node tests/test_auth.cjs
+python scripts/build_architecture_diagrams.py --png
+```
+
+Offline tests mock external verification and model services; production has no
+verification bypass or development secret. Cloudflare's official test keys can
+be used only in an isolated development setup with matching hostname validation;
+the automated suites need no production secrets or AWS credentials.
+
+Deployment requires a manually configured Managed Turnstile widget and an existing
+Secrets Manager secret. Follow the exact existing-stack update and Amplify release
+steps in [aws/README.md](aws/README.md). Nothing deploys merely by running the tests.

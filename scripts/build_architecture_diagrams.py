@@ -88,8 +88,8 @@ class Diagram:
 
 
 def build_deployment_diagram():
-    diagram = Diagram('Deployment architecture', 'Two release paths: manual infrastructure updates and automatic GitHub-driven website builds.', 1600, 1150)
-    diagram.boundary(330, 170, 1218, 910, 'AWS Cloud · stack Region: eu-west-1')
+    diagram = Diagram('Deployment architecture', 'Manual CloudFormation updates; automatic GitHub-driven website and knowledge builds.', 1600, 1530)
+    diagram.boundary(330, 170, 1218, 1290, 'AWS Cloud · stack Region: eu-west-1')
     diagram.text(366, 220, '01 / INFRASTRUCTURE · MANUAL AWS CLI DEPLOYMENT', 13, PURPLE, 700)
     diagram.text(366, 530, '02 / APPLICATION + KNOWLEDGE · AMPLIFY AUTO BUILD', 13, GREEN, 700)
     diagram.arrow([(270, 300), (380, 300)], 'Upload YAML', (324, 282), PURPLE)
@@ -108,7 +108,7 @@ def build_deployment_diagram():
     diagram.card(380, 235, 'Amazon S3', 'Private template upload|cloudformation/ prefix', 's3')
     diagram.card(730, 235, 'AWS|CloudFormation', 'Change set + IAM capability|Parameters preserved on update', 'cloudformation')
     diagram.card(1090, 235, 'Stack-managed|AWS resources', 'Amplify · DNS · IAM · Cognito|API · Lambda · data · Bedrock + Guardrails', 'cloud', width=400)
-    diagram.card(730, 400, 'AWS Secrets|Manager', 'GitHub connection token|Resolved during stack deployment', 'secrets', height=120)
+    diagram.card(730, 400, 'AWS Secrets|Manager', 'GitHub · origin · IP HMAC|External Turnstile secret', 'secrets', height=120)
     diagram.card(50, 560, 'GitHub', 'main branch|HTML · assets · CV · templates', tag='Git')
     diagram.card(380, 560, 'AWS Amplify', 'Connected production branch|Automatic builds enabled', 'amplify')
     diagram.card(730, 560, 'Amplify build', 'Assemble static site + config|Publish CV and wait for ingestion', 'amplify')
@@ -120,56 +120,85 @@ def build_deployment_diagram():
         'The build waits for successful knowledge-base ingestion before publishing the static website.',
         'GitHub pushes rebuild the application; infrastructure YAML changes require a separate CloudFormation deployment.'
     ])
+    diagram.text(366, 1100, '03 / SESSION SECURITY · CLOUDFORMATION-MANAGED RESOURCES', 13, PURPLE, 700)
+    diagram.card(380, 1130, 'Session Lambda', 'Introduction · Turnstile Siteverify|Create / upgrade · no Bedrock', 'lambda', width=335)
+    diagram.card(755, 1130, 'Lambda Authorizer', 'Opaque session + visitor credential|Uncached lifecycle validation', 'lambda', width=335)
+    diagram.card(1130, 1130, 'DynamoDB', 'Existing state + retained history|Visitor · session · quota · exchanges', 'dynamodb', width=360)
+    diagram.card(50, 1130, 'Cloudflare|Turnstile', 'Managed widget · public site key|Configure hostnames manually', width=260, tag='CF')
+    diagram.arrow([(310, 1195), (380, 1195)], color=PURPLE)
+    diagram.arrow([(1090, 1195), (1130, 1195)], color=PURPLE)
+    diagram.note(380, 1310, 1110, 'Optional account transition', [
+        'Existing Cognito pool, client, verified email and social providers are preserved.',
+        'JWT-protected session upgrade rotates the chat credential; subsequent chat requests use the Lambda Authorizer.'
+    ])
     diagram.save('deployment.svg')
 
 
 def build_runtime_diagram():
-    diagram = Diagram('Runtime architecture', 'Authenticated CV chat with quotas, retained history, retrieval augmented generation and Bedrock Guardrails.', 1800, 1450)
-    diagram.boundary(340, 170, 1408, 1200, 'AWS Cloud')
-    diagram.text(380, 230, 'GLOBAL DELIVERY + API EDGE', 13, PURPLE, 700)
-    diagram.boundary(370, 480, 1348, 850, 'Primary Region · eu-west-1', 'region', PURPLE, True)
-    diagram.arrow([(270, 310), (400, 310)], 'DNS', (335, 292))
-    diagram.arrow([(620, 310), (740, 310)], 'Website alias', (680, 292))
-    diagram.arrow([(160, 245), (160, 158), (850, 158), (850, 245)], 'HTTPS · static pages + assets', (650, 158))
-    diagram.arrow([(160, 375), (160, 435), (1200, 435), (1200, 375)], 'POST /chat · access token', (810, 435))
-    diagram.arrow([(270, 340), (302, 340), (302, 605), (400, 605)], 'Sign in · PKCE', (310, 565), PURPLE, True)
-    diagram.arrow([(1200, 375), (1200, 460), (850, 460), (850, 540)], 'Origin verification header', (1040, 460))
-    diagram.arrow([(620, 605), (740, 605)], 'JWT validation', (680, 587), PURPLE, True)
-    diagram.arrow([(960, 605), (1070, 605)], 'Invoke', (1015, 587))
-    diagram.arrow([(1290, 605), (1420, 605)], 'RetrieveAndGenerate', (1355, 587))
-    diagram.arrow([(1120, 670), (1120, 740), (850, 740), (850, 815)], 'Atomic quota renewal', (880, 740))
-    diagram.arrow([(1200, 670), (1200, 815)], 'Owner + exchanges', (1200, 765))
-    diagram.arrow([(1070, 635), (1010, 635), (1010, 775), (510, 775), (510, 815)], color=MUTED, dashed=True)
-    diagram.label(637, 775, 'Operational logs', MUTED)
-    diagram.arrow([(1530, 815), (1530, 670)], 'Input + output policy', (1580, 745), PURPLE, True)
-    diagram.arrow([(1640, 605), (1660, 605), (1660, 1065), (1640, 1065)], color=INK)
-    diagram.label(1650, 975, 'Generate answer')
-    diagram.arrow([(1480, 670), (1480, 765), (1370, 765), (1370, 1245), (1310, 1245)], color=GREEN)
-    diagram.label(1370, 1160, 'Retrieve CV vectors', GREEN)
-    diagram.arrow([(620, 1245), (1090, 1245)], 'Build-time ingestion · Titan embeddings', (855, 1245), GREEN, True)
-    diagram.card(50, 245, 'Visitor browser', 'Static HTML / CSS / JavaScript|Floating CV assistant', 'user')
-    diagram.card(400, 245, 'Amazon|Route 53', 'Authoritative website DNS|Apex + www domain', 'route53')
-    diagram.card(740, 245, 'AWS Amplify|Hosting', 'Managed CDN + HTTPS|Static website delivery', 'amplify')
-    diagram.card(1090, 245, 'Amazon|CloudFront', 'Dedicated chat API distribution|Edge request checks · no cache', 'cloudfront')
-    diagram.card(400, 540, 'Amazon|Cognito', 'Email sign-in + verification|Optional social identity providers', 'cognito')
-    diagram.card(740, 540, 'Amazon|API Gateway', 'HTTP API · JWT authorizer|Route: POST /chat', 'api')
-    diagram.card(1070, 540, 'AWS Lambda', 'Ownership + quota enforcement|CV-grounded prompt + profile name', 'lambda')
-    diagram.card(1420, 540, 'Amazon Bedrock', 'Knowledge Bases|Retrieve and generate CV answers', 'bedrock')
-    diagram.card(400, 815, 'Amazon|CloudWatch', 'Application error / request logs|14-day log retention', 'cloudwatch')
-    diagram.card(740, 815, 'Amazon|DynamoDB', 'One quota row per user + global|UTC periods · in-place renewal', 'dynamodb')
-    diagram.card(1090, 815, 'Amazon|DynamoDB', 'Conversation history + ownership|Questions · answers · deadlines', 'dynamodb')
-    diagram.card(1420, 815, 'Amazon Bedrock|Guardrails', 'Denied topics + prompt attacks|Published policy · refusal on block', 'bedrock')
-    diagram.card(1420, 1000, 'Amazon Bedrock', 'Amazon Nova Lite|EU cross-Region inference profile', 'bedrock')
-    diagram.card(400, 1180, 'Amazon S3', 'Private source document|Curated knowledge/cv.txt', 's3')
-    diagram.card(1090, 1180, 'Amazon S3|Vectors', 'Private vector bucket + index|Retrieval store for the CV', 'vectors')
-    diagram.note(740, 1090, 550, 'Conversation lifecycle', ['Five-minute inactivity cutoff or explicit session close.', 'Session ownership lives in retained history summaries.'])
-    diagram.text(380, 1400, 'Solid arrows: request / data flow · Dashed arrows: policy, identity, logging or build-time preparation · Replies return over the request path.', 13, MUTED)
+    diagram = Diagram('Runtime architecture', 'Guest access first; optional verified Cognito identity upgrades the same conversation.', 1800, 1810)
+    diagram.boundary(340, 170, 1408, 1555, 'AWS Cloud · eu-west-1 application Region')
+    diagram.text(380, 230, '01 / INTRODUCTION AND SESSION ESTABLISHMENT · NO MODEL INVOCATION', 13, PURPLE, 700)
+    diagram.card(50, 260, 'Visitor browser', 'Existing greeting · name + company|Start chatting · Managed Turnstile', 'user', width=260)
+    diagram.card(400, 260, 'Route 53 +|Amplify Hosting', 'Static pages · HTTPS|GitHub-driven application builds', 'amplify', width=270)
+    diagram.card(740, 260, 'CloudFront', 'Allow listed routes · origin token|Overwrites trusted viewer IP · no cache', 'cloudfront', width=320)
+    diagram.card(1140, 260, 'HTTP API Gateway', 'POST /chat/session · no Cognito|Separate session-route throttling', 'api', width=310)
+    diagram.card(1140, 470, 'Session Lambda', 'Validate introduction + Siteverify|Atomic abuse counters · session creation', 'lambda', width=310)
+    diagram.card(50, 470, 'Cloudflare|Turnstile', 'Managed check · chat_session action|Single-use token · hostname validation', width=260, tag='CF')
+    diagram.card(400, 470, 'Secrets Manager', 'Turnstile secret · IP HMAC key|Separate public site key in build config', 'secrets', width=310)
+    diagram.card(1500, 470, 'DynamoDB|state', 'Visitor + credential hashes|Expiry + revocation', 'dynamodb', width=230, height=150)
+    diagram.arrow([(310, 320), (400, 320)], 'Pages', (355, 302))
+    diagram.arrow([(310, 365), (350, 365), (350, 425), (900, 425), (900, 390)], 'Form + Turnstile token + existing visitor credential', (675, 425))
+    diagram.arrow([(1060, 325), (1140, 325)])
+    diagram.arrow([(1295, 390), (1295, 470)])
+    diagram.arrow([(310, 535), (350, 535), (350, 640), (1295, 640), (1295, 600)], 'Server-side Siteverify · no per-message challenge', (825, 640), PURPLE, True)
+    diagram.arrow([(710, 535), (1140, 535)], 'Secret access', (925, 517), PURPLE, True)
+    diagram.arrow([(1450, 535), (1520, 535)])
+    diagram.text(380, 705, '02 / EVERY CHAT REQUEST · SESSION AUTHORISATION BEFORE INFERENCE', 13, GREEN, 700)
+    diagram.card(400, 750, 'HTTP API Gateway', 'POST /chat · CUSTOM authorizer|Bearer chat token + visitor credential', 'api', width=310)
+    diagram.card(790, 750, 'Lambda Authorizer', 'Hash lookup · expiry · revocation|Visitor binding · five-minute deadline', 'lambda', width=310)
+    diagram.card(1180, 750, 'Chat Lambda', 'Session context · ownership · lock|Atomic quotas before any inference', 'lambda', width=310)
+    diagram.arrow([(900, 390), (900, 440), (755, 440), (755, 720), (555, 720), (555, 750)], 'Via CloudFront · session token returned to browser', (790, 690))
+    diagram.arrow([(710, 815), (790, 815)])
+    diagram.arrow([(1100, 815), (1180, 815)], 'Verified identity', (1140, 797))
+    diagram.arrow([(1670, 620), (1670, 695), (945, 695), (945, 750)], 'Consistent reads · caching disabled', (1400, 695), PURPLE, True)
+    diagram.card(400, 960, 'DynamoDB quotas', 'Guest visitor + keyed IP; verified user|Separate shared global counters', 'dynamodb', width=340)
+    diagram.card(820, 960, 'DynamoDB history', 'Conversation ID · visitor · name/company|Email on upgrade · timestamped exchanges', 'dynamodb', width=350)
+    diagram.card(1250, 960, 'Amazon Bedrock', 'Knowledge Base · Amazon Nova Lite|Published Guardrails · grounded replies', 'bedrock', width=440)
+    diagram.arrow([(1290, 880), (1290, 920), (570, 920), (570, 960)], 'Revision-checked transaction', (820, 920))
+    diagram.arrow([(1350, 880), (1350, 935), (995, 935), (995, 960)])
+    diagram.arrow([(1470, 880), (1470, 960)])
+    diagram.note(400, 1130, 1290, 'Identity and quota boundaries', [
+        'Visitor ID persists across conversations; conversation ID groups history; random session token authorises only that conversation.',
+        'Guest: 10 questions/UTC day; IP: 3/minute + 50/UTC day. Authenticated: 10/minute + 100/UTC day.',
+        'Global: 1,000/UTC day AND 1,000/UTC month. Shared IP/global counters never carry visitor name, company or email.',
+        'Private S3 source → Bedrock Knowledge Base ingestion → S3 Vectors is unchanged; Guardrails apply to every answer.'
+    ])
+    diagram.text(380, 1325, '03 / OPTIONAL COGNITO UPGRADE · SAME VISITOR, CONVERSATION AND PENDING QUESTION', 13, PURPLE, 700)
+    diagram.card(50, 1370, 'Guest limit reached', 'Sign in / Register · Maybe later|Global limit never suggests sign-in', 'user', width=260)
+    diagram.card(400, 1370, 'Cognito', 'PKCE · verified email|Existing email + social providers', 'cognito', width=310)
+    diagram.card(790, 1370, 'HTTP API Gateway', 'POST /chat/session/upgrade|Existing Cognito JWT authorizer', 'api', width=350)
+    diagram.card(1220, 1370, 'Session Lambda', 'Verify guest + account · rotate token|Attach subject/email · preserve history', 'lambda', width=470)
+    diagram.arrow([(310, 1435), (400, 1435)], color=PURPLE)
+    diagram.arrow([(710, 1435), (790, 1435)], color=PURPLE)
+    diagram.arrow([(1140, 1435), (1220, 1435)], color=PURPLE)
+    diagram.note(400, 1550, 1290, 'Resume and lifecycle', [
+        'The browser restores its transcript and pending question, then sends the rotated session credential through the same chat authorizer.',
+        'Verified-user quotas replace guest/IP quotas. Global limits remain. Sign-out closes the session and returns to guest introduction.',
+        'Five minutes of inactivity or explicit closure ends the conversation. Retained summaries include sessions that asked no questions.'
+    ])
+    diagram.text(380, 1760, 'Solid arrows: request/data flow · Dashed arrows: supporting verification · Browser storage is first-party; third-party cookies are not required for guest chat.', 13, MUTED)
     diagram.save('runtime.svg')
 
 
 def main():
     build_deployment_diagram()
     build_runtime_diagram()
+    import sys
+    if '--png' in sys.argv:
+        import cairosvg
+        for name in ('deployment', 'runtime'):
+            cairosvg.svg2png(url=str(OUTPUT_DIRECTORY / (name + '.svg')),
+                            write_to=str(OUTPUT_DIRECTORY / (name + '.png')))
 
 
 if __name__ == '__main__':

@@ -43,6 +43,8 @@ def read_knowledge_configuration():
     """Allow disconnected local previews while requiring complete Amplify configuration."""
     environment_values = [os.environ.get(name) for name in ENVIRONMENT_VARIABLE_NAMES]
     if all(environment_values):
+        if os.environ.get('AWS_APP_ID') and not os.environ.get('TURNSTILE_SITE_KEY'):
+            raise RuntimeError('TURNSTILE_SITE_KEY is required for the chat security check.')
         return KnowledgeConfiguration(*environment_values)
     if any(environment_values) or os.environ.get("AWS_APP_ID"):
         missing_variables = [
@@ -59,6 +61,10 @@ def read_knowledge_configuration():
 
 def write_public_configuration(chat_endpoint, authentication_domain=None, authentication_client_id=None):
     public_configuration = {"endpoint": chat_endpoint}
+    if os.environ.get('TURNSTILE_SITE_KEY'):
+        public_configuration['turnstileSiteKey'] = os.environ['TURNSTILE_SITE_KEY']
+    elif os.environ.get('AWS_APP_ID'):
+        raise RuntimeError('TURNSTILE_SITE_KEY is required for the chat security check.')
     if authentication_domain and authentication_client_id:
         public_configuration["auth"] = {
             "domain": authentication_domain,

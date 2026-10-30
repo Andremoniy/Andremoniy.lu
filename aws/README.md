@@ -14,10 +14,10 @@ GitHub knowledge/cv.txt -> Amplify build -> private S3 source bucket
                                               |
                                       S3 vector bucket/index
 
-Browser sign-in -> Cognito -> configured social provider or email account
-Floating chat -> CloudFront -> HTTP API Gateway JWT authorizer -> Lambda -> Bedrock
-                                                                  |
-                                  DynamoDB user/global quotas and session ownership
+Introduction + Turnstile -> CloudFront -> HTTP API -> Session Lambda -> DynamoDB
+Established chat -> CloudFront -> HTTP API Lambda Authorizer -> Chat Lambda -> Bedrock
+Guest limit -> Cognito -> JWT-protected session upgrade -> same conversation
+                                      DynamoDB visitor/IP/user/global quotas + history
 ```
 
 Amplify publishes the seven static pages and official App Store artwork. Its build
@@ -37,7 +37,7 @@ Text Embeddings v2 produces 1,024-dimensional vectors from 400-token chunks with
 ordinary S3 source bucket. Both stores are private and encrypted at rest; the
 source bucket blocks public access and rejects insecure transport.
 
-The authenticated API accepts questions of up to 1,000 characters and limits generated
+The established-session API accepts questions of up to 1,000 characters and limits generated
 answers to 600 tokens. API Gateway allows one request per second with a burst of
 four. Lambda uses shared account concurrency by default. A positive
 `ChatReservedConcurrency` parameter reserves and caps concurrent chat executions
@@ -46,8 +46,8 @@ it does not disable the function. Exact-origin CORS covers the apex, `www` and t
 configured Amplify branch hostname. Origin restrictions are not authentication
 and do not prevent non-browser callers from spoofing the Origin header.
 
-Answers are rendered as text without the source-passage display. Session IDs remain in page memory.
-Application logs contain Bedrock error codes, service error messages, request IDs
+Answers are rendered as text without the source-passage display. Session credentials and the OAuth transcript snapshot live in tab-scoped sessionStorage.
+Application logs contain Bedrock error codes, request IDs
 and the configured model ARN rather than application conversation bodies, and expire
 after 14 days. Account-level Bedrock invocation logging is a separate configuration.
 Prompt grounding reduces unsupported answers but cannot guarantee accuracy.
@@ -84,77 +84,140 @@ the version resource's Description forces CloudFormation to publish a replacemen
 snapshot after the guardrail update. The runtime diagram shows this as an attached
 input/output policy, rather than a separate network proxy.
 
-## Authentication and per-user quotas
+## Guest sessions, optional authentication and quotas
 
-The first submitted question is held in the browser until the visitor signs in.
-The OAuth flow uses authorization code with SHA-256 PKCE, a random state value,
-an exact same-origin callback, and a 10-minute sign-in-flow expiry. The callback
-exchanges the code and returns to the original portfolio page with the pending
-question. Access tokens expire after 15 minutes and live in tab-scoped session
-storage; refresh tokens are discarded. Expired sessions prompt sign-in again.
-`auth-callback.html` is part of the Amplify release. The Cognito sign-in cookie
-can simplify subsequent authentication without extending an access token.
+`POST /chat/session` is public through the existing CloudFront distribution and
+HTTP API. The lightweight Session Lambda validates trimmed Name (1–80 characters)
+and Company (1–120), rejects control characters, malformed objects and oversized
+bodies, reserves creation-abuse counters, verifies Turnstile success/hostname/action,
+and creates the session and initial history summary atomically. HTTP APIs do not
+support REST API JSON-schema validators, so body validation intentionally lives
+here. This Lambda has no Bedrock permissions.
 
-API Gateway validates token signature, issuer, audience and expiry and requires
-the `portfolio-chat/ask` scope. Lambda additionally checks the token type and
-client ID. CORS is an additional browser restriction, not the authentication
-mechanism. Sign-out clears local tokens and ends the Cognito login session.
+The backend issues independent random 256-bit visitor and session credentials.
+Only SHA-256 hashes of credentials are stored. The visitor credential is retained
+in first-party localStorage for 180 days and must resolve to a backend-issued
+visitor record. The session credential is tab-scoped, authorises one conversation
+and expires after `SessionTokenSeconds` (default/max 3,600 seconds). The public
+conversation ID is independent of the Bedrock continuation ID. Both guest and
+registered users must establish a session and confirm an introduction each time.
+The browser keeps introduction values in sessionStorage for same-tab confirmation;
+it does not add persistent profile preferences or non-essential storage.
 
-`ChatQuestionsPerMinute` and `ChatQuestionsPerDay` default to 10 and 100.
-`ChatGlobalQuestionsPerDay` and `ChatGlobalQuestionsPerMonth` default to 1,000 and
-10,000 across all users. DynamoDB uses fixed UTC minute/day/calendar-month windows.
-A single transaction updates one persistent user row and one persistent global row
-before generation. Revision checks and bounded retries prevent concurrent requests
-from overwriting increments or partially consuming another allowance when one
-limit is exhausted. Valid requests that reach quota consumption count even
-if a subsequent model call fails. Invalid input and rejected
-conversation ownership do not consume quota. Throttled responses include reset
-timing. Expired periods reset in place on the next accepted request; the request
-then increments the renewed counter to one. No scheduled reset job is needed.
-The browser displays the remaining wait in hours and minutes, and the API returns
-both `retryAfterSeconds` and `quotaResetsAt` with HTTP 429.
+`POST /chat` uses `SessionAuthorizer`, a REQUEST Lambda Authorizer with simple
+responses, two mandatory identity sources (Authorization and X-Visitor-Token), and
+zero caching TTL. It validates credential hashes, visitor binding, expiry,
+revocation, conversation ownership and inactivity using consistent reads. It
+passes verified metadata through API Gateway context. Chat Lambda never validates
+Cognito JWTs or chat credentials cryptographically. It rechecks session lifecycle
+with an atomic 45-second processing lock, enforces ownership and quotas, calls
+Bedrock, then atomically stores the exchange and summary. The lock also prevents
+upgrade during an in-flight answer. Only the matching lock holder releases it.
+Revocation or session-store failure fails closed.
 
-`ChatStateTable` contains `quota#<quota identity>` and one `quota#global` row.
-Each row has a numeric `revision` and readable UTC `updatedAt`. User rows contain
-`minutePeriodStart`, `minuteRequestCount`, `minuteResetsAt`, `dayPeriodStart`,
-`dayRequestCount`, `dayResetsAt`, the latest Cognito owner and verified normalized
-email when available. The global row contains day/month fields and no user email.
-Rows do not carry TTL timestamps and persist until manually deleted. TTL stays
-enabled to remove legacy time-window and session rows. First use of a persistent
-row seeds its active counters from the corresponding legacy rows, guarded by
-transactional condition checks; future requests no longer read those old counters.
-Verified mailboxes identify the user quota across devices and provider accounts.
-The canonical form is lowercase with the `+tag` removed; consumer Gmail addresses
-also ignore dots and normalize `googlemail.com` to `gmail.com`. Dots in other
-domains remain significant. Only the canonical mailbox's SHA-256 hash appears in
-the quota key, never the raw or tagged address. Without a verified email, the
-Cognito subject identifies the quota. Unverified email claims cannot consume
-another mailbox's quota. Conversation ownership remains tied to the Cognito
-subject, and accounts are not automatically linked by email.
+Guest exhaustion offers **Sign in / Register** and **Maybe later** with the
+explanation of abuse protection. Global exhaustion never offers sign-in. Cognito
+retains authorization code + PKCE, state validation, exact return paths, 15-minute
+access tokens, verified email and optional social providers. The browser snapshots
+the session, transcript and pending question before OAuth navigation. Other page
+exits close the conversation, with inactivity as a fallback.
 
-Global limits stop model invocations across every account once exhausted, while
-the static site remains available. The UI distinguishes shared exhaustion from
-a personal quota. These are request-count limits, not dollar-denominated spending
-caps: API, identity, database and traffic charges can continue after model calls
-stop. Existing external budget alerts are independent of these counters.
+`POST /chat/session/upgrade` retains the existing Cognito JWT authorizer and
+`portfolio-chat/ask` scope. Session Lambda checks access-token client/type/scope,
+loads matching Cognito userInfo, requires verified email, and validates the old
+session plus visitor credential. A transaction revokes the old chat credential,
+issues a replacement and attaches subject/verified email to the existing summary.
+The replacement expires no later than the Cognito access token. It cannot upgrade
+another visitor's session or change an already associated account. Subsequent
+questions use the same Lambda Authorizer. Previous guest exchanges remain guest
+records; the summary and subsequent exchanges contain the verified identity.
+Sign-out closes/revokes the conversation and returns to the guest introduction.
 
-The history table stores hashed conversation IDs, their owner ID and a
-five-minute inactivity deadline in conversation summaries. Lambda checks ownership
-and the deadline there before resuming a Bedrock session. It also retains timestamped
-questions and answers, grouped by conversation and linked to the Cognito subject.
-Its summary records the effective end time, extended on each exchange or set by
-an explicit session-close request. History has no automatic expiry, has
-point-in-time recovery enabled and is retained on stack deletion. Neither table
-stores access tokens or profile names. User quota records, history
-summaries and individual exchanges include a separate `email` attribute from
-the verified Cognito profile, lowercase and without a plus tag. Shared quota
-records have no email. Missing or unverified email attributes are omitted.
-Existing records receive the attribute only when rewritten by normal chat
-activity; older exchanges are not backfilled.
-The user pool stores identity attributes. Lambda retrieves the visitor's name
-from Cognito's authenticated userInfo endpoint, verifies the returned subject,
-sanitizes the name and includes it as data in the generation prompt. A name is
-used naturally when shared by the provider; it is not invented when unavailable.
+| Parameter | Default | Scope |
+|---|---:|---|
+| GuestQuestionsPerDay | 10 | Backend-issued visitor / UTC day |
+| GuestIpQuestionsPerMinute | 3 | Trusted viewer IP / UTC minute |
+| GuestIpQuestionsPerDay | 50 | Trusted viewer IP / UTC day |
+| ChatQuestionsPerMinute | 10 | Verified mailbox / UTC minute |
+| ChatQuestionsPerDay | 100 | Verified mailbox / UTC day |
+| ChatGlobalQuestionsPerDay | 1000 | Everyone / UTC day |
+| ChatGlobalQuestionsPerMonth | 1000 | Everyone / UTC calendar month |
+| SessionCreationsPerMinute | 5 | Establishment attempts / IP / UTC minute |
+| SessionCreationsPerDay | 1000 | Establishment attempts / global / UTC day |
+
+One revision-checked DynamoDB transaction reserves all applicable question
+allowances. Guests consume visitor, IP and global counters; authenticated users
+consume verified-user and global counters. Conflicts are reread and retried with
+bounded backoff, so failed reservations cannot partially charge another counter.
+Rejected authentication and establishment never consume question quotas.
+Requests reserved before a later model failure do count. HTTP 429 includes scope,
+reset timestamp, Retry-After and whether sign-in may help; the UI shows local reset
+time. Clearing local storage cannot reset IP counters, and changing IP does not
+reset an existing visitor's allowance. Shared-IP visitors may use Cognito to move
+to verified-user limits while global limits still apply.
+
+Existing `quota#<verified mailbox hash>` and `quota#global` rows renew UTC fields
+in place, preserving counts during rollout. Guarded migration still seeds old
+time-window counters on first use. Guest rows (`quota#guest-<visitor>` and
+`quota#ip-<HMAC>`) use the same table and expire after 48 hours. Creation counters
+expire after 48 hours; Turnstile replay hashes after 10 minutes. Temporary session
+and visitor records expire with their credentials. TTL deletion is asynchronous;
+expiry and revocation are always checked in code. User-specific rows include
+name/company and verified email where applicable. Shared/global counters contain
+none of these attributes. Existing authenticated/global rows retain their previous
+manual-deletion policy. IP HMAC keys are server-only; avoid rotation inside active
+quota windows because rotation changes the pseudonymous counter keys.
+
+The history table is unchanged: summaries exist at establishment, before the first
+question, and carry conversation/visitor IDs, self-declared introduction,
+authentication status, start/last activity times, effective end time and reason.
+Every exchange has timestamps and introduction metadata. Five minutes of idle
+time ends the conversation without a scheduled write; `endsAt` plus `inactivity`
+records that effective ending. Explicit close writes `closedAt` and
+`session_closed`. Summary updates preserve Bedrock continuation and prior history.
+No history is deleted or backfilled with invented names or companies. History has
+no automatic expiry, retains PITR and remains retained on stack deletion.
+
+## Turnstile setup and local testing
+
+Before deployment, create a **Managed** Cloudflare Turnstile widget. Allow
+`andremoniy.com`, `www.andremoniy.com` and the actual production Amplify branch
+hostname. Disable pre-clearance: no Cloudflare zone/proxy or third-party cookie is
+required. The browser sets action `chat_session` and appearance `interaction-only`.
+Turnstile is loaded only when the visitor opens the introduction. Siteverify
+success must match that action and the request Origin hostname; the latter must
+already belong to the stack's exact origin allow list. Tokens are single-use and
+expire after five minutes; the backend also writes conditional replay hashes.
+After an expired/failed challenge, the browser resets the widget and preserves the
+introduction and selected question. Per-message challenges are never required.
+
+Create a Secrets Manager secret in eu-west-1, e.g.
+`andremoniy/chat/turnstile`, containing JSON `{"secret":"YOUR_TURNSTILE_SECRET"}`.
+Use the console or a protected local JSON file; never commit it or include its
+value in shell history. With a protected file, the manual command is:
+
+```powershell
+aws secretsmanager create-secret --name andremoniy/chat/turnstile `
+  --secret-string file://C:/secure/turnstile-secret.json --region eu-west-1 --profile default
+```
+
+Pass the **secret name**, not its ARN, as `TurnstileSecretName`. The Session IAM
+role can read only that secret. For an existing customer-managed KMS key, separately
+grant the role access to decrypt that key or use the AWS-managed Secrets Manager
+key. The stack generates separate origin and IP-HMAC secrets; neither is public.
+Only `TurnstileSiteKey` reaches Amplify's public configuration. Rotate the Turnstile
+secret in Secrets Manager and recycle/update Session Lambda configuration to clear
+its warm-process cache. Never disable validation to make deployment succeed.
+
+Offline tests use moto plus mocked Siteverify, Cognito and Bedrock with success,
+failure, replay, expiry and interleaved transaction cases. They require no live
+secrets or AWS calls. Cloudflare test keys are suitable for an isolated development
+environment, never production; hostname/action checks must still match. A local
+static preview without backend configuration remains disconnected. No production
+test-key bypass or secret is built into the application.
+
+References: [Cloudflare server validation](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/),
+[HTTP API Lambda authorizers](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-lambda-authorizer.html).
 
 ## Email alias protection
 
@@ -175,9 +238,10 @@ produce distinct Cognito accounts but share the same application allowance.
 ## CloudFront API perimeter
 
 The chat endpoint is the HTTPS CloudFront URL in `ChatApiURL`. A viewer-request
-function accepts only `POST /chat` and its `OPTIONS` preflight from configured
-website origins. POST requests require a bearer header; API Gateway still performs
-the actual JWT validation. CORS checks are additional browser restrictions and
+function accepts `POST /chat`, `/chat/session` and `/chat/session/upgrade`, plus
+their `OPTIONS` preflights, from configured website origins. Establishment needs
+no bearer token; chat and upgrade require bearer headers. API Gateway validates
+chat sessions through Lambda and Cognito JWTs on upgrade. CORS checks are additional browser restrictions and
 can be spoofed by non-browser clients.
 
 Chat responses and errors are not cached. The distribution forwards authorization
@@ -193,8 +257,8 @@ CloudFront uses pay-as-you-go pricing and its default certificate, with
 custom API domain or separate certificate. Shield Standard supplies basic network
 DDoS protection; CloudFront alone does not provide WAF bot/rate rules. Applicable
 free-tier allowances are account-wide, and proxy requests, origin transfer and
-excess usage can incur charges. The origin token adds one Secrets Manager secret
-(standard list price approximately USD 0.40/month, plus API calls). This perimeter
+excess usage can incur charges. The origin, IP-HMAC and Turnstile secrets have
+Secrets Manager storage/API charges. This perimeter
 is not an account-wide billing cap.
 
 The switch from the API Gateway URL to the CloudFront URL requires a stack update
@@ -370,7 +434,7 @@ aws cloudformation deploy `
     ChatQuestionsPerMinute=10 `
     ChatQuestionsPerDay=100 `
     ChatGlobalQuestionsPerDay=1000 `
-    ChatGlobalQuestionsPerMonth=10000 `
+    ChatGlobalQuestionsPerMonth=1000 `
   --region $AwsRegion `
   --profile $AwsProfile
 ```
@@ -403,3 +467,84 @@ The release uses the branch's stack-managed knowledge-storage and API environmen
 variables. Subsequent GitHub pushes trigger Amplify builds; CloudFormation changes
 require a separate stack update. The `WebsiteURL`, `CustomDomainURL` and
 `ChatApiURL` outputs identify the resulting endpoints.
+
+## Hybrid-access rollout to the existing stack (manual only)
+
+Do not create a replacement stack. Complete Turnstile configuration and secret
+creation above first. These PowerShell commands preserve existing stack parameters
+except the explicitly supplied values. In particular the existing monthly value
+may be 10,000; a changed template default does not replace it, so explicitly pass
+1,000. Existing user/global usage counts are retained and may immediately block
+requests if already above the new allowance.
+
+```powershell
+$AwsProfile = 'default'
+$AwsRegion = 'eu-west-1'
+$StackName = 'andremoniy-portfolio' # use the actual existing stack name
+$TurnstilePublicSiteKey = 'REPLACE_WITH_PUBLIC_SITE_KEY'
+$TemplateBucket = aws cloudformation describe-stacks --stack-name $StackName `
+  --query "Stacks[0].Outputs[?OutputKey=='CvSourceBucket'].OutputValue | [0]" `
+  --output text --region $AwsRegion --profile $AwsProfile
+python scripts/sync_chat_code.py --check
+python -m unittest discover -s tests -p 'test_*.py'
+cfn-lint aws/amplify.yaml
+aws s3 cp aws/amplify.yaml "s3://$TemplateBucket/cloudformation/hybrid-chat.yaml" `
+  --region $AwsRegion --profile $AwsProfile
+aws cloudformation validate-template `
+  --template-url "https://$TemplateBucket.s3.$AwsRegion.amazonaws.com/cloudformation/hybrid-chat.yaml" `
+  --region $AwsRegion --profile $AwsProfile
+aws cloudformation deploy --stack-name $StackName --template-file aws/amplify.yaml `
+  --s3-bucket $TemplateBucket --s3-prefix cloudformation --capabilities CAPABILITY_IAM `
+  --parameter-overrides TurnstileSiteKey=$TurnstilePublicSiteKey `
+    TurnstileSecretName=andremoniy/chat/turnstile `
+    GuestQuestionsPerDay=10 GuestIpQuestionsPerMinute=3 GuestIpQuestionsPerDay=50 `
+    ChatQuestionsPerMinute=10 ChatQuestionsPerDay=100 `
+    ChatGlobalQuestionsPerDay=1000 ChatGlobalQuestionsPerMonth=1000 `
+  --no-execute-changeset --region $AwsRegion --profile $AwsProfile
+# Inspect the reported change set: no table or Cognito replacement is expected.
+$ChangeSetId = 'REPLACE_WITH_THE_REPORTED_CHANGE_SET_ARN'
+aws cloudformation describe-change-set --change-set-name $ChangeSetId `
+  --stack-name $StackName --region $AwsRegion --profile $AwsProfile
+# Only after reviewing the change set:
+aws cloudformation execute-change-set --change-set-name $ChangeSetId `
+  --stack-name $StackName --region $AwsRegion --profile $AwsProfile
+aws cloudformation wait stack-update-complete --stack-name $StackName `
+  --region $AwsRegion --profile $AwsProfile
+```
+
+The generic deployment examples earlier also require `TurnstileSiteKey` and
+`TurnstileSecretName` on this first update (and on new stacks). Subsequent updates
+reuse those parameter values. This repository change does not execute any of
+these deployment commands.
+
+For Amplify, stage the committed code on the configured production GitHub branch
+only when ready to release; pushes trigger automatic builds. Deploy the backend
+first, then run/retry the Amplify build after stack completion so it receives
+`TURNSTILE_SITE_KEY` alongside existing endpoint and Cognito variables. For an
+explicit rebuild after the code is pushed:
+
+```powershell
+$AmplifyAppId = aws cloudformation describe-stacks --stack-name $StackName `
+  --query "Stacks[0].Outputs[?OutputKey=='AmplifyAppId'].OutputValue | [0]" `
+  --output text --region $AwsRegion --profile $AwsProfile
+aws amplify start-job --app-id $AmplifyAppId --branch-name main --job-type RELEASE `
+  --region $AwsRegion --profile $AwsProfile
+```
+
+Coordinate this backend/frontend release: the old frontend's Cognito bearer token
+will no longer satisfy the new chat authorizer. Existing tabs must reload and
+establish a new conversation; the public endpoint and Cognito account configuration
+are preserved. No Cognito-user migration or password reset is needed. Existing
+history and quota tables are neither replaced nor emptied. Legacy conversations
+remain readable administratively; they do not become guest credentials. No
+automatic metadata backfill is attempted. Confirm existing parameter overrides,
+especially monthly quota and optional providers, before executing the change set.
+
+After deployment, smoke-test Managed Turnstile on each allowed hostname, actual
+JWT issuer/audience/signature rejection, missing/forged chat credentials, guest
+limits, email/social sign-in, same-conversation upgrade and sign-out. Check that
+the public config contains only the public site key and no secret. Inspect IAM
+and logs for the expected metadata/error codes without credentials or raw IPs.
+Offline tests and cfn-lint do not replace these managed-service checks. Review
+the controller's legitimate-interest assessment, processor terms and retained
+history policy before enabling the revised privacy notice in production.

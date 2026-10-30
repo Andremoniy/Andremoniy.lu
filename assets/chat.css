@@ -6,3 +6,4 @@
 
 .cv-chat .bot-avatar{color:#192d25}.cv-chat form{flex-shrink:0}
 .cv-chat-signin{display:block;margin-top:12px;padding:10px 14px;border:0;border-radius:8px;background:#192d25;color:white;font:inherit}.cv-chat header button[aria-label="Sign out"]{font-size:11px}.cv-chat button[hidden]{display:none}
+.cv-chat .cv-chat-introduction{display:flex;flex-direction:column;gap:10px;padding:14px;border:0;white-space:normal}.cv-chat-introduction p{margin:0}.cv-chat-introduction label{display:flex;flex-direction:column;gap:4px}.cv-chat-introduction input{width:100%;box-sizing:border-box}.cv-chat-introduction [role=status]:empty{display:none}.cv-chat-verification{max-width:100%;overflow:auto}.cv-chat-introduction button{align-self:flex-start}.cv-chat form[hidden]{display:none}
