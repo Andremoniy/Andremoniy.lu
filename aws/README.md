@@ -468,6 +468,111 @@ variables. Subsequent GitHub pushes trigger Amplify builds; CloudFormation chang
 require a separate stack update. The `WebsiteURL`, `CustomDomainURL` and
 `ChatApiURL` outputs identify the resulting endpoints.
 
+## Chat-session email notifications
+
+The first **saved Q&A** creates one notification event, including greetings or
+guardrail refusals saved as an exchange. Opening the widget, submitting Name/Company,
+failed model calls without a saved exchange, later questions, account upgrades and
+closure do not create another event. The history transaction sets `firstInteractionAt`
+and `firstQuestion` with `if_not_exists` alongside the exchange. Existing history is
+preserved; these fields keep the first interaction's timestamp/question unchanged.
+
+```text
+First Q&A + first-interaction summary marker (one DynamoDB transaction)
+  -> ChatHistoryTable stream (NEW_AND_OLD_IMAGES)
+  -> filtered ChatNotificationStreamMapping -> ChatNotificationFunction
+       -> leased notification#session#... row in existing ChatStateTable
+       -> ChatNotificationTopic (SNS Standard) -> confirmed owner email
+       -> record publication status SENT
+  -> SQS failure destination after stream retry/age limits
+```
+
+The mapping and handler both check the old/new summary transition where the first
+marker appears. Starting at `TRIM_HORIZON` avoids gaps during poller creation.
+Enabling a stream does not backfill existing rows or email historical transcripts.
+Mapping re-creation can replay retained stream events; publication records suppress
+ordinary duplicates. The email contains self-declared name/company, access status,
+first interaction time in Europe/Paris (UTC fallback), conversation ID and first
+question. Verified email is included only if already authenticated at that exchange.
+It excludes the answer, subsequent transcript, raw IPs and session credentials.
+It is plain SNS text, not a public history-reading link.
+
+Only the notification Lambda can publish to SNS. Chat Lambda makes no new network
+calls and does not wait for notification delivery. The consumer can read the specific
+history stream and update only `notification#session#*` state keys. A conditional
+30-second lease prevents simultaneous publication; SNS failure releases it, and an
+abandoned lease can be reclaimed. Success records SENT and the SNS message ID.
+The email snapshot and deduplication record expire after 30 days; existing history
+retention is unchanged. No event payloads or personal data are written to logs.
+
+Delivery remains **at least once**. A crash after SNS accepts a message but before
+SENT is recorded can cause a duplicate, and SNS delivery itself can duplicate.
+SENT means SNS accepted publication, not inbox delivery or that someone read it.
+Notification failures cannot fail the visitor's chat request.
+
+Partial batch failures, a batch size of 10, up to 10 retries and a one-hour maximum
+record age bound error handling. Exhausted batches go to the SQS-managed-encrypted
+`ChatNotificationFailureQueue` for 14 days. That destination contains stream/shard/
+sequence **metadata, not the original DynamoDB record**. Inspect the stream record
+while available (24 hours), or use the retained first question/timestamp and 30-day
+notification snapshot to investigate later. Inspect the queue and notification logs
+after deployment or if notifications stop; no separate failure-email alarm is added.
+
+For a manual replay, reconstruct a stream-shaped MODIFY record with the summary's
+NewImage, OldImage without the first marker, and a SequenceNumber. Keep the existing
+deduplication row: SENT records are skipped, and unsent records can be reclaimed
+after their lease expires. Never delete SENT rows just to replay a batch. A replay
+after an ambiguous SNS result can duplicate the email.
+
+### Manual deployment and confirmation
+
+`ChatNotificationEmail` defaults to the requested `andremoniy@gmail.com`. An empty
+value disables the optional stream/notification resources; inspect outstanding
+failure-queue records before disabling. Tables are updated in place, without
+replacement or history deletion. The stack adds one Lambda/log group, an IAM role,
+SNS topic/subscription, stream mapping and SQS failure queue, with normal AWS request
+and storage charges. No additional model invocation is needed.
+
+Deploy manually from the repository root:
+
+```powershell
+$StackName = 'andremoniy-portfolio'
+$TemplateBucket = aws cloudformation describe-stacks --stack-name $StackName `
+  --query "Stacks[0].Outputs[?OutputKey=='CvSourceBucket'].OutputValue | [0]" `
+  --output text --region eu-west-1 --profile default
+aws cloudformation deploy --stack-name $StackName --template-file aws/amplify.yaml `
+  --s3-bucket $TemplateBucket --s3-prefix cloudformation --capabilities CAPABILITY_IAM `
+  --parameter-overrides ChatNotificationEmail=andremoniy@gmail.com `
+  --region eu-west-1 --profile default
+```
+
+Existing model/quota/Turnstile parameters are retained. After stack completion,
+open the SNS **Subscription Confirmation** email and click its confirmation link.
+**Confirm before testing**: publications made while the subscription is pending
+are not delivered later. Check spam if needed. Use `ChatNotificationTopicArn` and
+`ChatNotificationFailureQueueURL` stack outputs to locate the resources.
+
+```powershell
+$TopicArn = aws cloudformation describe-stacks --stack-name $StackName `
+  --query "Stacks[0].Outputs[?OutputKey=='ChatNotificationTopicArn'].OutputValue | [0]" `
+  --output text --region eu-west-1 --profile default
+aws sns list-subscriptions-by-topic --topic-arn $TopicArn `
+  --query 'Subscriptions[].{Protocol:Protocol,SubscriptionArn:SubscriptionArn}' `
+  --region eu-west-1 --profile default
+```
+
+Smoke-test a new conversation: introduction alone sends nothing; the first saved
+Q&A creates one publication; later questions and sign-in do not create another;
+a new conversation creates another. Publish the revised architecture/privacy pages
+through the usual Amplify build. Offline tests exercise the inline code and atomic
+history writes using moto. Actual subscription confirmation and inbox delivery
+remain deployment checks. Local tests do not change AWS infrastructure.
+
+References: [stream processing](https://docs.aws.amazon.com/lambda/latest/dg/with-ddb.html),
+[deduplication](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.Lambda.BestPracticesWithDynamoDB.html),
+[failure destinations](https://docs.aws.amazon.com/lambda/latest/dg/services-dynamodb-errors.html),
+[subscription confirmation](https://docs.aws.amazon.com/sns/latest/api/API_Subscribe.html).
+
 ## Hybrid-access rollout to the existing stack (manual only)
 
 Do not create a replacement stack. Complete Turnstile configuration and secret

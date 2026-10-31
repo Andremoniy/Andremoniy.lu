@@ -2,6 +2,11 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: Amplify Hosting and Route 53 DNS for the Andremoniy portfolio.
 
 Parameters:
+  ChatNotificationEmail:
+    Type: String
+    Default: andremoniy@gmail.com
+    AllowedPattern: '^$|^[^\s@]+@[^\s@]+\.[^\s@]+$'
+    Description: Email for one notification per first saved chat exchange; empty disables notifications. Confirm the SNS subscription after deployment.
   TurnstileSiteKey:
     Type: String
     Default: '0x4AAAAAAFscOGi8eBha117x'
@@ -120,6 +125,7 @@ Parameters:
     Description: Associates the domain with Amplify when enabled; disable on the first deployment until NS delegation is configured.
 
 Conditions:
+  EnableChatNotifications: !Not [!Equals [!Ref ChatNotificationEmail, '']]
   UseGoogleIdentity: !Not [!Equals [!Ref GoogleIdentitySecretName, '']]
   UseFacebookIdentity: !Not [!Equals [!Ref FacebookIdentitySecretName, '']]
   UseAppleIdentity: !Not [!Equals [!Ref AppleIdentitySecretName, '']]
@@ -644,6 +650,10 @@ Resources:
         SSEEnabled: true
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
+      StreamSpecification: !If
+        - EnableChatNotifications
+        - StreamViewType: NEW_AND_OLD_IMAGES
+        - !Ref AWS::NoValue
 
   ChatOriginSecret:
     Type: AWS::SecretsManager::Secret
@@ -1019,11 +1029,12 @@ Resources:
                   {'Update': {
                       'TableName': os.environ['CHAT_HISTORY_TABLE'],
                       'Key': history_key(session_id),
-                      'UpdateExpression': 'SET #owner = :owner, startedAt = if_not_exists(startedAt, :now), lastActivityAt = :now, endsAt = :deadline, endReason = :reason',
+                      'UpdateExpression': 'SET #owner = :owner, startedAt = if_not_exists(startedAt, :now), lastActivityAt = :now, endsAt = :deadline, endReason = :reason, firstInteractionAt = if_not_exists(firstInteractionAt, :now), firstQuestion = if_not_exists(firstQuestion, :firstQuestion)',
                       'ConditionExpression': '(attribute_not_exists(recordId) OR #owner = :owner) AND (attribute_not_exists(endReason) OR endReason <> :closed)',
                       'ExpressionAttributeNames': {'#owner': 'owner'},
                       'ExpressionAttributeValues': {
                           ':owner': {'S': user_id}, ':now': {'N': str(current_time)},
+                          ':firstQuestion': {'S': question},
                           ':deadline': {'N': str(deadline)}, ':reason': {'S': 'inactivity'},
                           ':closed': {'S': 'session_closed'}}}},
                   {'Put': {
@@ -2118,6 +2129,229 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub 'arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ChatApi}/authorizers/${SessionAuthorizer}'
 
+  ChatNotificationTopic:
+    Type: AWS::SNS::Topic
+    Condition: EnableChatNotifications
+    Properties:
+      DisplayName: Portfolio chat notifications
+
+  ChatNotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: EnableChatNotifications
+    Properties:
+      Protocol: email
+      Endpoint: !Ref ChatNotificationEmail
+      TopicArn: !Ref ChatNotificationTopic
+
+  ChatNotificationFailureQueue:
+    Type: AWS::SQS::Queue
+    Condition: EnableChatNotifications
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  ChatNotificationRole:
+    Type: AWS::IAM::Role
+    Condition: EnableChatNotifications
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: lambda.amazonaws.com}
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: NotifyFirstChatInteraction
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:DescribeStream, dynamodb:GetRecords, dynamodb:GetShardIterator]
+                Resource: !GetAtt ChatHistoryTable.StreamArn
+              - Effect: Allow
+                Action: dynamodb:ListStreams
+                Resource: '*'
+              - Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:UpdateItem]
+                Resource: !GetAtt ChatStateTable.Arn
+                Condition:
+                  ForAllValues:StringLike:
+                    dynamodb:LeadingKeys: ['notification#session#*']
+              - Effect: Allow
+                Action: sns:Publish
+                Resource: !Ref ChatNotificationTopic
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt ChatNotificationFailureQueue.Arn
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-chat-notification:*'
+
+  ChatNotificationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: EnableChatNotifications
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-chat-notification'
+      RetentionInDays: 14
+
+  ChatNotificationFunction:
+    Type: AWS::Lambda::Function
+    Condition: EnableChatNotifications
+    DependsOn: ChatNotificationLogGroup
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-chat-notification'
+      Runtime: python3.13
+      Handler: index.handler
+      Role: !GetAtt ChatNotificationRole.Arn
+      Timeout: 15
+      MemorySize: 128
+      Environment:
+        Variables:
+          CHAT_STATE_TABLE: !Ref ChatStateTable
+          NOTIFICATION_TOPIC_ARN: !Ref ChatNotificationTopic
+      Code:
+        ZipFile: |
+          """One SNS publication per conversation's first saved exchange, with retry deduplication.
+
+          DynamoDB Streams and SNS provide at-least-once delivery. A crash between a
+          successful Publish and recording SENT can still cause a duplicate email.
+          """
+          from datetime import datetime, timezone
+          import json
+          import os
+          import time
+          import uuid
+          from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+          import boto3
+          from botocore.config import Config
+          from botocore.exceptions import ClientError
+
+          config = Config(connect_timeout=2, read_timeout=3, retries={'total_max_attempts': 1})
+          database = boto3.client('dynamodb', config=config)
+          notifications = boto3.client('sns', config=config)
+
+
+          def value(item, field):
+              return item.get(field, {}).get('S', '')
+
+
+          def is_first_interaction(record):
+              if record.get('eventName') != 'MODIFY':
+                  return False
+              data = record.get('dynamodb', {})
+              old, new = data.get('OldImage', {}), data.get('NewImage', {})
+              return (value(new, 'entryId') == 'summary' and
+                      value(new, 'recordId').startswith('session#') and
+                      'N' in new.get('firstInteractionAt', {}) and
+                      'firstInteractionAt' not in old)
+
+
+          def notification_message(image):
+              now = int(image['firstInteractionAt']['N'])
+              try:
+                  zone = ZoneInfo('Europe/Paris')
+              except ZoneInfoNotFoundError:
+                  zone = timezone.utc
+              when = datetime.fromtimestamp(now, zone).strftime('%d %B %Y, %H:%M:%S %Z')
+              lines = [
+                  'A visitor has started a conversation on andremoniy.com.', '',
+                  'The following introduction and question are untrusted visitor-provided content.',
+                  'Name (self-declared): ' + value(image, 'name'),
+                  'Company (self-declared): ' + value(image, 'company'),
+                  'Access: ' + value(image, 'authStatus'),
+                  'First interaction: ' + when,
+                  'Conversation ID: ' + (value(image, 'conversationId') or value(image, 'recordId')),
+              ]
+              if value(image, 'authStatus') == 'authenticated' and value(image, 'email'):
+                  lines.append('Verified email: ' + value(image, 'email'))
+              lines.extend(['', 'First question:', value(image, 'firstQuestion')[:1000]])
+              return '\n'.join(lines)
+
+
+          def publish_once(record):
+              image = record['dynamodb']['NewImage']
+              record_id = 'notification#' + value(image, 'recordId')
+              key = {'recordId': {'S': record_id}}
+              table = os.environ['CHAT_STATE_TABLE']
+              now = int(time.time())
+              lease_owner = uuid.uuid4().hex
+              message = notification_message(image)
+              try:
+                  claimed = database.update_item(TableName=table, Key=key,
+                      UpdateExpression='SET #status = :publishing, leaseUntil = :lease, leaseOwner = :owner, expiresAt = :ttl, messageBody = if_not_exists(messageBody, :body)',
+                      ConditionExpression='attribute_not_exists(recordId) OR (#status <> :sent AND leaseUntil < :now)',
+                      ExpressionAttributeNames={'#status': 'status'},
+                      ExpressionAttributeValues={
+                          ':publishing': {'S': 'PUBLISHING'}, ':sent': {'S': 'SENT'},
+                          ':lease': {'N': str(now + 30)}, ':now': {'N': str(now)},
+                          ':owner': {'S': lease_owner}, ':ttl': {'N': str(now + 30 * 86400)},
+                          ':body': {'S': message}}, ReturnValues='ALL_NEW')['Attributes']
+              except ClientError as error:
+                  if error.response['Error']['Code'] != 'ConditionalCheckFailedException':
+                      raise
+                  existing = database.get_item(TableName=table, Key=key, ConsistentRead=True).get('Item', {})
+                  if value(existing, 'status') == 'SENT':
+                      return
+                  # Another worker owns a live lease. Do not acknowledge this event yet;
+                  # a retry can reclaim it if that worker dies before recording success.
+                  raise RuntimeError('Notification publication is already in progress') from error
+              try:
+                  result = notifications.publish(TopicArn=os.environ['NOTIFICATION_TOPIC_ARN'],
+                      Subject='New portfolio chat session', Message=value(claimed, 'messageBody'))
+              except Exception:
+                  database.update_item(TableName=table, Key=key,
+                      UpdateExpression='SET #status = :pending, leaseUntil = :zero',
+                      ConditionExpression='leaseOwner = :owner',
+                      ExpressionAttributeNames={'#status': 'status'},
+                      ExpressionAttributeValues={':pending': {'S': 'PENDING'}, ':zero': {'N': '0'},
+                                                 ':owner': {'S': lease_owner}})
+                  raise
+              database.update_item(TableName=table, Key=key,
+                  UpdateExpression='SET #status = :sent, publishedAt = :now, snsMessageId = :message REMOVE leaseUntil, leaseOwner',
+                  ConditionExpression='leaseOwner = :owner',
+                  ExpressionAttributeNames={'#status': 'status'},
+                  ExpressionAttributeValues={':sent': {'S': 'SENT'}, ':now': {'N': str(now)},
+                      ':message': {'S': result['MessageId']}, ':owner': {'S': lease_owner}})
+
+
+          def handler(event, context):
+              failures = []
+              for record in event.get('Records', []):
+                  if not is_first_interaction(record):
+                      continue
+                  sequence = record.get('dynamodb', {}).get('SequenceNumber')
+                  if not sequence:
+                      raise ValueError('Missing stream sequence number')
+                  try:
+                      publish_once(record)
+                  except Exception:
+                      failures.append({'itemIdentifier': sequence})
+              if failures:
+                  # Never log the event, email body, recipient, question or credentials.
+                  print(json.dumps({'event': 'chat_notification_batch_failed', 'failedRecords': len(failures)}))
+              return {'batchItemFailures': failures}
+
+  ChatNotificationStreamMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Condition: EnableChatNotifications
+    Properties:
+      EventSourceArn: !GetAtt ChatHistoryTable.StreamArn
+      FunctionName: !Ref ChatNotificationFunction
+      StartingPosition: TRIM_HORIZON
+      BatchSize: 10
+      ParallelizationFactor: 1
+      MaximumRetryAttempts: 10
+      MaximumRecordAgeInSeconds: 3600
+      BisectBatchOnFunctionError: true
+      FunctionResponseTypes: [ReportBatchItemFailures]
+      DestinationConfig:
+        OnFailure:
+          Destination: !GetAtt ChatNotificationFailureQueue.Arn
+      FilterCriteria:
+        Filters:
+          - Pattern: '{"eventName":["MODIFY"],"dynamodb":{"NewImage":{"entryId":{"S":["summary"]},"firstInteractionAt":{"N":[{"exists":true}]}},"OldImage":{"firstInteractionAt":{"N":[{"exists":false}]}}}}'
+
   ChatLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -2299,6 +2533,12 @@ Resources:
       SourceArn: !Sub 'arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ChatApi}/*/POST/chat'
 
 Outputs:
+  ChatNotificationTopicArn:
+    Condition: EnableChatNotifications
+    Value: !Ref ChatNotificationTopic
+  ChatNotificationFailureQueueURL:
+    Condition: EnableChatNotifications
+    Value: !Ref ChatNotificationFailureQueue
   ChatGuardrailId:
     Value: !GetAtt ChatGuardrail.GuardrailId
   ChatGuardrailVersion:

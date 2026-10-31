@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1530" viewBox="0 0 1600 1530" role="img" aria-labelledby="title description">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1870" viewBox="0 0 1600 1870" role="img" aria-labelledby="title description">
 <title id="title">Deployment architecture</title><desc id="description">Manual CloudFormation updates; automatic GitHub-driven website and knowledge builds.</desc>
 <defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7Z" fill="#192b36"/></marker></defs>
-<rect width="1600" height="1530" fill="#f7f9fc"/>
+<rect width="1600" height="1870" fill="#f7f9fc"/>
 <g font-family="Arial, Helvetica, sans-serif">
 <text x="52" y="49" fill="#7854a4" font-size="12" font-weight="700">ANDREY LEBEDEV / PORTFOLIO ARCHITECTURE</text>
 <text x="52" y="96" fill="#192b36" font-size="32" font-weight="700">Deployment architecture</text>
 <text x="52" y="130" fill="#596b79" font-size="16" font-weight="400">Manual CloudFormation updates; automatic GitHub-driven website and knowledge builds.</text>
-<rect x="330" y="170" width="1218" height="1290" fill="#fff" stroke="#d5861f" stroke-width="1.5"/>
+<rect x="330" y="170" width="1218" height="1620" fill="#fff" stroke="#d5861f" stroke-width="1.5"/>
 <svg x="344" y="182" width="26" height="26" viewBox="0 0 40 40" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <title>Icon-Architecture-Group/32/AWS-Cloud_32</title>
     <g id="cloud-344-182-Icon-Architecture-Group/32/AWS-Cloud_32" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
@@ -251,5 +251,51 @@
 <text x="396" y="1336" fill="#192b36" font-size="14" font-weight="700">Optional account transition</text>
 <text x="396" y="1359" fill="#596b79" font-size="13" font-weight="400">Existing Cognito pool, client, verified email and social providers are preserved.</text>
 <text x="396" y="1379" fill="#596b79" font-size="13" font-weight="400">JWT-protected session upgrade rotates the chat credential; subsequent chat requests use the Lambda Authorizer.</text>
-<text x="52" y="1505" fill="#596b79" font-size="12" font-weight="400">Source: aws/amplify.yaml + amplify.yml | Official AWS Architecture Icons: July 2026 | Logical service architecture; no VPC</text>
+<text x="366" y="1450" fill="#338568" font-size="13" font-weight="700">04 / OWNER NOTIFICATIONS · OPTIONAL CLOUDFORMATION RESOURCES</text>
+<rect x="380" y="1480" width="335" height="130" rx="10" fill="#fff" stroke="#d9e0e8" stroke-width="1.3"/>
+<svg x="396" y="1499" width="56" height="56" viewBox="0 0 80 80" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Icon-Architecture/64/Arch_AWS-Lambda_64</title>
+    <g id="lambda-396-1499-Icon-Architecture/64/Arch_AWS-Lambda_64" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="lambda-396-1499-Icon-Architecture-BG/64/Compute" fill="#ED7100">
+            <rect id="lambda-396-1499-Rectangle" x="0" y="0" width="80" height="80"></rect>
+        </g>
+        <path d="M28.0075352,66 L15.5907274,66 L29.3235885,37.296 L35.5460249,50.106 L28.0075352,66 Z M30.2196674,34.553 C30.0512768,34.208 29.7004629,33.989 29.3175745,33.989 L29.3145676,33.989 C28.9286723,33.99 28.5778583,34.211 28.4124746,34.558 L13.097944,66.569 C12.9495999,66.879 12.9706487,67.243 13.1550766,67.534 C13.3374998,67.824 13.6582439,68 14.0020416,68 L28.6420072,68 C29.0299071,68 29.3817234,67.777 29.5481094,67.428 L37.563706,50.528 C37.693006,50.254 37.6920037,49.937 37.5586944,49.665 L30.2196674,34.553 Z M64.9953491,66 L52.6587274,66 L32.866809,24.57 C32.7014253,24.222 32.3486067,24 31.9617091,24 L23.8899822,24 L23.8990031,14 L39.7197081,14 L59.4204149,55.429 C59.5857986,55.777 59.9386172,56 60.3255148,56 L64.9953491,56 L64.9953491,66 Z M65.9976745,54 L60.9599868,54 L41.25928,12.571 C41.0938963,12.223 40.7410777,12 40.3531778,12 L22.89768,12 C22.3453987,12 21.8963569,12.447 21.8953545,12.999 L21.884329,24.999 C21.884329,25.265 21.9885708,25.519 22.1780103,25.707 C22.3654452,25.895 22.6200358,26 22.8866544,26 L31.3292417,26 L51.1221625,67.43 C51.2885485,67.778 51.6393624,68 52.02626,68 L65.9976745,68 C66.5519605,68 67,67.552 67,67 L67,55 C67,54.448 66.5519605,54 65.9976745,54 L65.9976745,54 Z" id="lambda-396-1499-AWS-Lambda_Icon_64_Squid" fill="#FFFFFF"></path>
+    </g>
+</svg>
+<text x="465" y="1518" fill="#192b36" font-size="16" font-weight="700">Notification Lambda</text>
+<text x="396" y="1580" fill="#596b79" font-size="12" font-weight="400">History stream · first saved Q&amp;A</text>
+<text x="396" y="1597" fill="#596b79" font-size="12" font-weight="400">Leased deduplication in existing state</text>
+<rect x="755" y="1480" width="335" height="130" rx="10" fill="#fff" stroke="#d9e0e8" stroke-width="1.3"/>
+<rect x="771" y="1499" width="56" height="56" rx="9" fill="#edf1f6"/>
+<text x="779" y="1534" fill="#192b36" font-size="19" font-weight="700">SNS</text>
+<text x="840" y="1518" fill="#192b36" font-size="16" font-weight="700">Amazon SNS</text>
+<text x="771" y="1580" fill="#596b79" font-size="12" font-weight="400">Standard topic · email subscription</text>
+<text x="771" y="1597" fill="#596b79" font-size="12" font-weight="400">Owner confirms subscription manually</text>
+<rect x="1130" y="1480" width="360" height="130" rx="10" fill="#fff" stroke="#d9e0e8" stroke-width="1.3"/>
+<rect x="1146" y="1499" width="56" height="56" rx="9" fill="#edf1f6"/>
+<text x="1154" y="1534" fill="#192b36" font-size="19" font-weight="700">SQS</text>
+<text x="1215" y="1518" fill="#192b36" font-size="16" font-weight="700">Amazon SQS</text>
+<text x="1146" y="1580" fill="#596b79" font-size="12" font-weight="400">Failed stream-batch metadata</text>
+<text x="1146" y="1597" fill="#596b79" font-size="12" font-weight="400">14-day encrypted failure queue</text>
+<rect x="50" y="1480" width="260" height="130" rx="10" fill="#fff" stroke="#d9e0e8" stroke-width="1.3"/>
+<svg x="66" y="1499" width="56" height="56" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Icon-Resource/General-Resource/Res_User_48_Light</title>
+    <g id="user-66-1499-Icon-Resource/General-Resource/Res_User_48" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <path d="M6.025,44 C6.524,34.085 14.395,26.178 24,26.178 C27.248,26.178 30.43,27.092 33.205,28.822 C38.354,32.033 41.653,37.783 41.974,44 L6.025,44 Z M14.192,13.878 C14.192,8.432 18.592,4 24.001,4 C29.408,4 33.807,8.432 33.807,13.878 C33.807,19.325 29.408,23.757 24.001,23.757 C18.592,23.757 14.192,19.325 14.192,13.878 L14.192,13.878 Z M34.263,27.125 C32.53,26.044 30.65,25.26 28.698,24.771 C32.877,22.939 35.807,18.749 35.807,13.878 C35.807,7.329 30.51,2 24.001,2 C17.489,2 12.192,7.329 12.192,13.878 C12.192,18.755 15.13,22.95 19.317,24.778 C10.545,26.981 4,35.2 4,45 C4,45.552 4.447,46 5,46 L43,46 C43.552,46 44,45.552 44,45 C44,37.719 40.269,30.87 34.263,27.125 L34.263,27.125 Z" id="user-66-1499-Fill-1" fill="#242F3E"></path>
+    </g>
+</svg>
+<text x="135" y="1518" fill="#192b36" font-size="16" font-weight="700">Owner email</text>
+<text x="66" y="1580" fill="#596b79" font-size="12" font-weight="400">One publication per conversation</text>
+<text x="66" y="1597" fill="#596b79" font-size="12" font-weight="400">Email delivery is at least once</text>
+<polyline points="1310,1260 1510,1260 1510,1420 350,1420 350,1545 380,1545" fill="none" stroke="#338568" stroke-width="1.7" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="1046.5" y="1405" width="107.0" height="23" rx="4" fill="#fff"/>
+<text x="1100" y="1420" text-anchor="middle" fill="#338568" font-size="12">History stream</text>
+<polyline points="715,1545 755,1545" fill="none" stroke="#338568" stroke-width="1.7" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="920,1610 920,1635 180,1635 180,1610" fill="none" stroke="#338568" stroke-width="1.7" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="547,1610 547,1645 1310,1645 1310,1610" fill="none" stroke="#596b79" stroke-width="1.7" stroke-linejoin="round" marker-end="url(#arrow)" stroke-dasharray="6 5"/>
+<rect x="380" y="1690" width="1110" height="87" rx="8" fill="#edf3f8"/>
+<text x="396" y="1716" fill="#192b36" font-size="14" font-weight="700">Independent delivery path</text>
+<text x="396" y="1739" fill="#596b79" font-size="13" font-weight="400">ChatNotificationEmail enables the stream consumer, SNS subscription, failure queue and scoped IAM permissions.</text>
+<text x="396" y="1759" fill="#596b79" font-size="13" font-weight="400">Email publication runs after the exchange is saved; notification failures cannot block the chat response.</text>
+<text x="52" y="1845" fill="#596b79" font-size="12" font-weight="400">Source: aws/amplify.yaml + amplify.yml | Official AWS Architecture Icons: July 2026 | Logical service architecture; no VPC</text>
 </g></svg>

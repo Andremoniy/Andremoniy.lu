@@ -270,11 +270,12 @@ def remember_conversation(user_id, session_id, question, answer, email_address='
         {'Update': {
             'TableName': os.environ['CHAT_HISTORY_TABLE'],
             'Key': history_key(session_id),
-            'UpdateExpression': 'SET #owner = :owner, startedAt = if_not_exists(startedAt, :now), lastActivityAt = :now, endsAt = :deadline, endReason = :reason',
+            'UpdateExpression': 'SET #owner = :owner, startedAt = if_not_exists(startedAt, :now), lastActivityAt = :now, endsAt = :deadline, endReason = :reason, firstInteractionAt = if_not_exists(firstInteractionAt, :now), firstQuestion = if_not_exists(firstQuestion, :firstQuestion)',
             'ConditionExpression': '(attribute_not_exists(recordId) OR #owner = :owner) AND (attribute_not_exists(endReason) OR endReason <> :closed)',
             'ExpressionAttributeNames': {'#owner': 'owner'},
             'ExpressionAttributeValues': {
                 ':owner': {'S': user_id}, ':now': {'N': str(current_time)},
+                ':firstQuestion': {'S': question},
                 ':deadline': {'N': str(deadline)}, ':reason': {'S': 'inactivity'},
                 ':closed': {'S': 'session_closed'}}}},
         {'Put': {

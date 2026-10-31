@@ -52,6 +52,19 @@ point-in-time recovery and retention on stack deletion. See the accessible
 [Privacy & Cookies Notice](privacy.html) for storage, purposes, retention and rights.
 No advertising, analytics or optional tracking has been introduced.
 
+The first saved question and answer also initiate one owner-notification event.
+An atomic `firstInteractionAt`/`firstQuestion` marker in the retained summary
+feeds DynamoDB Streams → notification Lambda → SNS → the confirmed owner email.
+Opening the chat, submitting an introduction, later messages, account upgrades
+and closing the conversation do not send further notifications. Publication runs
+outside the chat request path. A leased record in the existing state table
+deduplicates retries and keeps the email snapshot for 30 days. Bounded stream
+failures go to an encrypted SQS metadata queue for 14 days. Delivery remains
+at least once; a crash after SNS accepts a publication can still duplicate an email.
+`ChatNotificationEmail` defaults to `andremoniy@gmail.com`; an empty value disables
+the optional resources. Confirm the SNS subscription before testing. See
+[notification deployment and operations](aws/README.md#chat-session-email-notifications).
+
 `knowledge/cv.txt` is the curated knowledge source. It contains structured career
 records, responsibilities, achievements, technologies, credentials and textual
 interpretations of the PDF's graphical ratings. Inferred CEFR equivalents are
@@ -77,7 +90,8 @@ introduction, session authorisation, guest/IP/global quotas, secure upgrades, OA
 rendering. Test dependencies are `boto3`, `PyYAML` and `jsdom`; CloudFormation
 schema validation uses `cfn-lint`. The production frontend has no Node dependencies.
 
-Backend sources are `aws/chat_handler.py` and `aws/session_handler.py`.
+Backend sources are `aws/chat_handler.py`, `aws/session_handler.py` and
+`aws/notification_handler.py`.
 Run `python scripts/sync_chat_code.py` after changes; the CloudFormation inline
 code is checked with `--check`. Tests run against that deployable inline code:
 

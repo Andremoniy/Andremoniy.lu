@@ -88,8 +88,8 @@ class Diagram:
 
 
 def build_deployment_diagram():
-    diagram = Diagram('Deployment architecture', 'Manual CloudFormation updates; automatic GitHub-driven website and knowledge builds.', 1600, 1530)
-    diagram.boundary(330, 170, 1218, 1290, 'AWS Cloud · stack Region: eu-west-1')
+    diagram = Diagram('Deployment architecture', 'Manual CloudFormation updates; automatic GitHub-driven website and knowledge builds.', 1600, 1870)
+    diagram.boundary(330, 170, 1218, 1620, 'AWS Cloud · stack Region: eu-west-1')
     diagram.text(366, 220, '01 / INFRASTRUCTURE · MANUAL AWS CLI DEPLOYMENT', 13, PURPLE, 700)
     diagram.text(366, 530, '02 / APPLICATION + KNOWLEDGE · AMPLIFY AUTO BUILD', 13, GREEN, 700)
     diagram.arrow([(270, 300), (380, 300)], 'Upload YAML', (324, 282), PURPLE)
@@ -131,12 +131,26 @@ def build_deployment_diagram():
         'Existing Cognito pool, client, verified email and social providers are preserved.',
         'JWT-protected session upgrade rotates the chat credential; subsequent chat requests use the Lambda Authorizer.'
     ])
+    diagram.text(366, 1450, '04 / OWNER NOTIFICATIONS · OPTIONAL CLOUDFORMATION RESOURCES', 13, GREEN, 700)
+    diagram.card(380, 1480, 'Notification Lambda', 'History stream · first saved Q&A|Leased deduplication in existing state', 'lambda', width=335)
+    diagram.card(755, 1480, 'Amazon SNS', 'Standard topic · email subscription|Owner confirms subscription manually', width=335, tag='SNS')
+    diagram.card(1130, 1480, 'Amazon SQS', 'Failed stream-batch metadata|14-day encrypted failure queue', width=360, tag='SQS')
+    diagram.card(50, 1480, 'Owner email', 'One publication per conversation|Email delivery is at least once', 'user', width=260)
+    diagram.arrow([(1310, 1260), (1510, 1260), (1510, 1420), (350, 1420), (350, 1545), (380, 1545)],
+                  'History stream', (1100, 1420), GREEN)
+    diagram.arrow([(715, 1545), (755, 1545)], color=GREEN)
+    diagram.arrow([(920, 1610), (920, 1635), (180, 1635), (180, 1610)], color=GREEN)
+    diagram.arrow([(547, 1610), (547, 1645), (1310, 1645), (1310, 1610)], color=MUTED, dashed=True)
+    diagram.note(380, 1690, 1110, 'Independent delivery path', [
+        'ChatNotificationEmail enables the stream consumer, SNS subscription, failure queue and scoped IAM permissions.',
+        'Email publication runs after the exchange is saved; notification failures cannot block the chat response.'
+    ])
     diagram.save('deployment.svg')
 
 
 def build_runtime_diagram():
-    diagram = Diagram('Runtime architecture', 'Guest access first; optional verified Cognito identity upgrades the same conversation.', 1800, 1810)
-    diagram.boundary(340, 170, 1408, 1555, 'AWS Cloud · eu-west-1 application Region')
+    diagram = Diagram('Runtime architecture', 'Guest sessions, optional Cognito upgrades and asynchronous owner notifications.', 1800, 2220)
+    diagram.boundary(340, 170, 1408, 1955, 'AWS Cloud · eu-west-1 application Region')
     diagram.text(380, 230, '01 / INTRODUCTION AND SESSION ESTABLISHMENT · NO MODEL INVOCATION', 13, PURPLE, 700)
     diagram.card(50, 260, 'Visitor browser', 'Existing greeting · name + company|Start chatting · Managed Turnstile', 'user', width=260)
     diagram.card(400, 260, 'Route 53 +|Amplify Hosting', 'Static pages · HTTPS|GitHub-driven application builds', 'amplify', width=270)
@@ -157,7 +171,7 @@ def build_runtime_diagram():
     diagram.card(400, 750, 'HTTP API Gateway', 'POST /chat · CUSTOM authorizer|Bearer chat token + visitor credential', 'api', width=310)
     diagram.card(790, 750, 'Lambda Authorizer', 'Hash lookup · expiry · revocation|Visitor binding · five-minute deadline', 'lambda', width=310)
     diagram.card(1180, 750, 'Chat Lambda', 'Session context · ownership · lock|Atomic quotas before any inference', 'lambda', width=310)
-    diagram.arrow([(900, 390), (900, 440), (755, 440), (755, 720), (555, 720), (555, 750)], 'Via CloudFront · session token returned to browser', (790, 690))
+    diagram.arrow([(900, 390), (900, 440), (755, 440), (755, 720), (555, 720), (555, 750)], 'Via CloudFront · session token returned to browser', (790, 675))
     diagram.arrow([(710, 815), (790, 815)])
     diagram.arrow([(1100, 815), (1180, 815)], 'Verified identity', (1140, 797))
     diagram.arrow([(1670, 620), (1670, 695), (945, 695), (945, 750)], 'Consistent reads · caching disabled', (1400, 695), PURPLE, True)
@@ -186,7 +200,25 @@ def build_runtime_diagram():
         'Verified-user quotas replace guest/IP quotas. Global limits remain. Sign-out closes the session and returns to guest introduction.',
         'Five minutes of inactivity or explicit closure ends the conversation. Retained summaries include sessions that asked no questions.'
     ])
-    diagram.text(380, 1760, 'Solid arrows: request/data flow · Dashed arrows: supporting verification · Browser storage is first-party; third-party cookies are not required for guest chat.', 13, MUTED)
+    diagram.text(380, 1730, '04 / FIRST SAVED Q&A · ASYNCHRONOUS EMAIL OUTSIDE THE CHAT REQUEST', 13, GREEN, 700)
+    diagram.arrow([(995, 1090), (995, 1110), (1710, 1110), (1710, 1700), (370, 1700), (370, 1835), (400, 1835)],
+                  'Atomic firstInteractionAt marker · old + new images', (1200, 1700), GREEN)
+    diagram.card(400, 1770, 'DynamoDB Streams', 'Only first-interaction transitions|No email for introductions or later turns', 'dynamodb', width=310)
+    diagram.card(790, 1770, 'Notification Lambda', 'Claim lease · publish · record SENT|30-day deduplication + message snapshot', 'lambda', width=350)
+    diagram.card(1220, 1770, 'Amazon SNS', 'Standard topic|Confirmed email subscription', width=250, tag='SNS')
+    diagram.card(1510, 1770, 'SQS|failures', 'Batch metadata|14-day retention', width=210, tag='SQS')
+    diagram.card(50, 1770, 'Owner email', 'First question + visitor introduction|Verified email when already signed in', 'user', width=260)
+    diagram.arrow([(710, 1835), (790, 1835)], color=GREEN)
+    diagram.arrow([(1140, 1835), (1220, 1835)], color=GREEN)
+    diagram.arrow([(1345, 1900), (1345, 1950), (180, 1950), (180, 1900)], color=GREEN)
+    diagram.arrow([(965, 1900), (965, 1930), (1615, 1930), (1615, 1900)],
+                  'After bounded retries', (1300, 1930), MUTED, True)
+    diagram.note(400, 1990, 1320, 'Delivery semantics and isolation', [
+        'The first saved exchange sets firstInteractionAt/firstQuestion once, in the same transaction as the history write.',
+        'Opening the widget, introduction submission, later messages, upgrades and closure do not trigger another publication.',
+        'Stream retries are deduplicated; a crash after SNS accepts a message can still produce a duplicate. No exactly-once email guarantee.'
+    ])
+    diagram.text(380, 2170, 'Solid arrows: request/data flow · Dashed arrows: supporting verification or failure handling · Guest chat requires no third-party cookies.', 13, MUTED)
     diagram.save('runtime.svg')
 
 

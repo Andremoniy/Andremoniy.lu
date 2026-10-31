@@ -12,7 +12,8 @@ def synchronize(check=False):
     updated = original
     for resource, filename in [('ChatFunction', 'chat_handler.py'),
                                ('SessionFunction', 'session_handler.py'),
-                               ('SessionAuthorizerFunction', 'session_handler.py')]:
+                               ('SessionAuthorizerFunction', 'session_handler.py'),
+                               ('ChatNotificationFunction', 'notification_handler.py')]:
         source = (ROOT / 'aws' / filename).read_text(encoding='utf-8')
         pattern = rf'(  {resource}:\n.*?      Code:\n        ZipFile: \|\n).*?(?=\n  \w+:)'
         updated, count = re.subn(pattern,
