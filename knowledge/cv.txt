@@ -132,6 +132,8 @@ Scope: Three-month assignment in 2026; exact months unspecified.
 Andrey Lebedev | 2026-2026 | Solution Architect | Quantexa - responsibilities, achievements and technology context
 During a three-month assignment, I reviewed, redesigned and developed internal engineering and solution architecture documentation for Quantexa’s decision intelligence platform, including technical training materials and design guidance.
 Relevant responsibilities and achievements:
+- Quantexa (2026-2026), Solution Architect: Designed database architectures from scratch and improved and redesigned existing database designs.
+- Quantexa (2026-2026), Solution Architect: Designed data architecture covering data integration, modelling and governance.
 - Quantexa (2026-2026), Solution Architect: Reviewed and improved existing architecture documentation, clarifying component interactions, design choices and engineering guidance.
 - Quantexa (2026-2026), Solution Architect: Developed and refined technical designs and documentation covering AWS, Azure, GCP and Kubernetes-based platform components.
 - Quantexa (2026-2026), Solution Architect: Documented secrets management best practices, including secure handling of database credentials between components and credential rotation.
@@ -152,6 +154,8 @@ Scope: Managed a team of 10 engineers. Formal IT Custodian and certified Securit
 Andrey Lebedev | 2024-2026 | Chapter Lead Engineer | ING Luxembourg - responsibilities, achievements and technology context
 As a Chapter Lead Engineer, I managed a team of 10 engineers and defined engineering standards within the chapter. The role combined people management, solution architecture, technology planning, engineering governance and hands-on contribution to critical components.
 Relevant responsibilities and achievements:
+- ING Luxembourg (2024-2026), Chapter Lead Engineer: Designed database architectures from scratch and improved and redesigned existing database designs.
+- ING Luxembourg (2024-2026), Chapter Lead Engineer: Designed data architecture covering data integration, modelling and governance.
 - ING Luxembourg (2024-2026), Chapter Lead Engineer: Initiated and championed engineering improvements within the chapter, including Domain-Driven Design, automated testing, CI/CD discipline and quality gates.
 - ING Luxembourg (2024-2026), Chapter Lead Engineer: Defined technology roadmaps for my engineering domain, evaluating architectural options and guiding the adoption of engineering practices and platforms.
 - ING Luxembourg (2024-2026), Chapter Lead Engineer: Designed solution architectures for chapter projects, including cloud-oriented and cloud-ready solutions aligned with the tribe’s private-cloud direction.
@@ -179,6 +183,8 @@ Scope: Architecture practices across six development teams; led or supervised ar
 Andrey Lebedev | 2024-2024 | Solution Architect | John Deere Bank - responsibilities, achievements and technology context
 As a regional Solution Architect, I ensured that local IT solutions followed corporate standards while remaining fit for local business needs. The role required analysis of the existing IT landscape, cross-product requirements, vendor solutions and architecture options, in close cooperation with engineering managers, product owners, scrum masters, developers and business stakeholders.
 Relevant responsibilities and achievements:
+- John Deere Bank (2024-2024), Solution Architect: Designed database architectures from scratch and improved and redesigned existing database designs.
+- John Deere Bank (2024-2024), Solution Architect: Designed data architecture covering data integration, modelling and governance.
 - John Deere Bank (2024-2024), Solution Architect: Independently analysed and documented the European regional application and integration landscape, producing its first consolidated architecture view across systems, interfaces and responsibilities.
 - John Deere Bank (2024-2024), Solution Architect: Created structured diagrams and design rationale to inform architecture discussions and technology decisions with business and technical stakeholders.
 - John Deere Bank (2024-2024), Solution Architect: Reviewed third-party and internal solution designs against maintainability, integration, security and operational-quality expectations.
@@ -201,6 +207,8 @@ Scope: Client: European Investment Bank (EIB). External consultant in the Lendin
 Andrey Lebedev | 2020-2024 | Domain Architect | Fujitsu - responsibilities, achievements and technology context
 I worked as an external consultant at the European Investment Bank. In the Lending Middle Office Unit, I served as Solution Architect, Technical Lead and Scrum Master. I independently proposed and championed changes to architecture, engineering quality and delivery practices for business-critical applications.
 Relevant responsibilities and achievements:
+- Fujitsu (2020-2024), Domain Architect: Designed database architectures from scratch and improved and redesigned existing database designs.
+- Fujitsu (2020-2024), Domain Architect: Designed data architecture covering data integration, modelling and governance.
 - Fujitsu (2020-2024), Domain Architect: Led and supervised a team of 10 developers, introducing stronger architecture discipline, engineering practices and delivery governance.
 - Fujitsu (2020-2024), Domain Architect: Introduced Domain-Driven Design (DDD), designing a meta-model-based architecture that reduced future development complexity and cost.
 - Fujitsu (2020-2024), Domain Architect: Introduced an API-first approach, simplifying API development and reducing regression risks across integrations.
@@ -227,6 +235,10 @@ Scope: Assignments: initial European Commission AWS cloud migration, followed pr
 Andrey Lebedev | 2017-2020 | IT Architect | ARHS Spikeseed - responsibilities, achievements and technology context
 After an initial European Commission AWS cloud-migration assignment, I worked predominantly on Ingenico’s microservices-based payment platform. It integrated multiple payment service providers and acquirers behind a unified API, with demanding reliability and integration requirements.
 Relevant responsibilities and achievements:
+- ARHS Spikeseed (2017-2020), IT Architect: Designed database architectures from scratch and improved and redesigned existing database designs for the European Commission cloud migration.
+- ARHS Spikeseed (2017-2020), IT Architect: Designed data architecture for the European Commission cloud migration, covering data integration, modelling and governance.
+- ARHS Spikeseed (2017-2020), IT Architect: Designed database architectures from scratch and improved and redesigned existing database designs for Ingenico’s payment platform.
+- ARHS Spikeseed (2017-2020), IT Architect: Designed data architecture for Ingenico’s payment platform, covering data integration, modelling and governance.
 - ARHS Spikeseed (2017-2020), IT Architect: Designed and documented component architecture and implemented corresponding solutions in a distributed payment platform.
 - ARHS Spikeseed (2017-2020), IT Architect: Led several acquirer implementations, including requirements gathering, communication with external acquirer representatives, planning, accreditation activity and delivery coordination.
 - ARHS Spikeseed (2017-2020), IT Architect: Designed and implemented the Funnel Service, a configurable load-balancing and queuing component distributing virtual-terminal requests across acquirer-specific terminals, supporting idempotency and reliable payment processing.
@@ -249,7 +261,9 @@ Scope: Hands-on development and modernization of company products.
 
 Andrey Lebedev | 2016-2017 | Senior Java Developer | 3D Issue - responsibilities, achievements and technology context
 Java backend development: Java 8, Spring Boot, Spring MVC, Spring Security, Thymeleaf, Hibernate 4.x, PostgreSQL, MySQL, Cassandra, Redis, AWS EC2, AWS RDS, Python, JUnit, HtmlUnit, PhantomJS, Selenium, Linux, Bash, Python, PHP, HTML, CSS, AngularJS, JavaScript, Jenkins, Jira, Maven, Bitbucket.
-- 3D Issue (2016-2017), Senior Java Developer: I have migrated several projects written in PHP/Python to the Java platform (Java 8 + Spring). The migration process included the creation of a semi-automatic converter for stored functions and procedures from MySQL to PostgreSQL (comprising several hundred procedures in total).
+- 3D Issue (2016-2017), Senior Java Developer: Designed database architectures from scratch and improved and redesigned existing database designs.
+- 3D Issue (2016-2017), Senior Java Developer: Designed data architecture covering data integration, modelling and governance.
+- 3D Issue (2016-2017), Senior Java Developer: I have migrated several projects written in PHP/Python to the Java platform (Java 8 + Spring). I also migrated databases from MySQL to PostgreSQL and built a semi-automatic converter for several hundred stored functions and procedures.
 - 3D Issue (2016-2017), Senior Java Developer: I introduced the use of automatic management and application of database schema changes using the Liquibase library and also developed an extension of this library for the Cassandra database.
 - 3D Issue (2016-2017), Senior Java Developer: I implemented several new projects from scratch, related to automatic text processing used internally within the Company, and performed the migration of one of the front-end projects from a Backbone+HAML stack to AngularJS. This involved fixing various issues and enhancing its performance.
 - 3D Issue (2016-2017), Senior Java Developer: I improved product security, redesigned authentication workflows and contributed as a core developer to a centralised security and user-management system used across the company’s products.
@@ -267,6 +281,8 @@ Scope: Established the in-house department. Approximately six months of remote d
 Andrey Lebedev | 2013-2017 | Head of Software Development Department | IntelInfo - responsibilities, achievements and technology context
 I was hired by a small company, IntelInfo, specialising in risk and security analysis, to establish its in-house Software Development Department. The primary goal was to automate existing business processes and to expand their market presence. This objective was successfully achieved. During three years, we developed several flagship software products that continue to be used and sold. My responsibilities encompassed project management, system analysis, software architecture development, programming core and critical parts of software, conducting business meetings, and team recruitment and coaching. I managed the department remotely for approximately six months after relocating abroad.
 My main achievements:
+- IntelInfo (2013-2017), Head of Software Development Department: Designed database architectures from scratch and improved and redesigned existing database designs.
+- IntelInfo (2013-2017), Head of Software Development Department: Designed data architecture for the company’s products, including the choice of data management platform, data integration, modelling and governance.
 - IntelInfo (2013-2017), Head of Software Development Department: I established a software development department and streamlined its operations;
 - IntelInfo (2013-2017), Head of Software Development Department: I coached and mentored junior and mid-level developers. One of them, following my recommendation, was appointed as the head of the department to succeed me after my departure from the company;
 - IntelInfo (2013-2017), Head of Software Development Department: I designed an enterprise solution for the company’s system landscape;
@@ -289,11 +305,23 @@ Starting as a Junior Java Developer, I was promoted to the position of Lead Soft
 - MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: Coaching junior developers.
 The projects on which I worked:
 - MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: CreditRegistry
+  - Designed the database architecture from scratch and improved and redesigned the existing database design.
+  - Designed the data architecture to support multiple database systems.
 - MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: NbchParser
+  - Designed the database architecture from scratch and improved and redesigned the existing database design.
+  - Designed the data architecture to support multiple database systems.
 - MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: AntiFraud System
+  - Designed the database architecture from scratch and improved and redesigned the existing database design.
+  - Designed the data architecture to support multiple database systems.
 - MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: StrategyExpress BPMS
+  - Designed the database architecture from scratch and improved and redesigned the existing database design.
+  - Designed the data architecture to support multiple database systems.
 - MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: AddressParser
+  - Designed the database architecture from scratch and improved and redesigned the existing database design.
+  - Designed the data architecture to support multiple database systems.
 - MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst: Russian Morphology Analyser
+  - Designed the database architecture from scratch and improved and redesigned the existing database design.
+  - Designed the data architecture to support multiple database systems.
 MFD InfoCenter / NBCH (2006-2013), Lead Software Developer / Lead System Analyst - The technologies used include: Java 1.5, 1.6, 1.7. Struts, Wicket, Tapestry, Spring, Grails, JSP, HTML, CSS, Oracle DB, IBM DB2, MSSQL Server, Hibernate, JDBC, CryptoPro, JCP, SFTP, XML, RhinoJS, Eclipse RCP, DSL, ANTLR, JUnit, Selenium, CI/CD.
 
 CAREER RECORD 09: Andrey Lebedev | 2004-2006 | PHP / Delphi Developer | DentaVita
@@ -308,6 +336,7 @@ Scope: Primary professional role.
 
 Andrey Lebedev | 2004-2006 | PHP / Delphi Developer | DentaVita - responsibilities, achievements and technology context
 Maintaining and developing internal software.
+- DentaVita (2004-2006), PHP / Delphi Developer: Designed database architectures from scratch and improved and redesigned existing database designs.
 
 ADDITIONAL CAREER PATH - PART-TIME CONSULTING, RESEARCH, TEACHING AND DEVELOPMENT
 
@@ -323,6 +352,7 @@ Scope: Part-time remote consultancy related to the objc2j converter.
 
 Andrey Lebedev | 2013-2014 | Consultant | Apportable - responsibilities, achievements and technology context
 As the creator of the currently frozen open-source project, the Objective C to Java converter (available at https://code.google.com/archive/p/objc2j/), I was hired as a remote consultant by Apportable. This company was later acquired by Google.
+- Apportable (2013-2014), Consultant: Designed database architectures from scratch and improved and redesigned existing database designs.
 
 CAREER RECORD 11: Andrey Lebedev | 2013-2016 | Research Fellow | Higher School of Economics
 Person: Andrey Lebedev.
@@ -388,6 +418,7 @@ Scope: Part-time Roads of Russia project, explicitly listed under part-time expe
 
 Andrey Lebedev | 2011-2012 | Backend Java Developer | Google - responsibilities, achievements and technology context
 I was involved in server-side development of the ’Roads of Russia’ project and the development of its mathematical model. The project aimed to collect data on road quality in Russia, sourced from mobile devices. This data was generated by the gyroscopes and accelerometers of mobile devices running on the Android OS. Users were expected to run the project’s mobile application on their devices while driving. My role was to collect and process this data on the server side and to provide it via a web service for display on a Google Maps layer within a web application. The backend was developed in Java and deployed on the Google App Engine platform.
+- Google (2011-2012), Backend Java Developer: Designed database architectures from scratch and improved and redesigned existing database designs for the Roads of Russia project.
 
 CERTIFICATIONS AND TRAINING - ANDREY LEBEDEV
 Years below are those listed in the source CV. Expiry dates and present validity are not specified. Certifications, training badges and course completions are distinguished below.
